@@ -31,4 +31,4 @@ export const BOOKS = [
     verse: number;
   }
 
-  export type AnswerType = "both" | "refernce" | "decoded"
+  export type AnswerType = "both" | "reference" | "decoded"
