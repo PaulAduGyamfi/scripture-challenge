@@ -18,5 +18,10 @@
     "@types/node": "^26.6.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "dotenv": "^18.0.5",
+    "zod": "^4.6.5"
   }
 }
