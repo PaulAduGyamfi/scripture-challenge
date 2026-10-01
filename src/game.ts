@@ -4,14 +4,21 @@ const ALIASES: Record<string, Book> = {
   jn: "John", jhn: "John", mt: "Matthew", matt: "Matthew", mk: "Mark", mrk: "Mark", lk: "Luke",
   ps: "Psalms", psalm: "Psalms", psa: "Psalms", prov: "Proverbs", pr: "Proverbs", phil: "Philippians",
   php: "Philippians", rom: "Romans", roman: "Romans", heb: "Hebrews", hebrw: "Hebrews", hebrew: "Hebrews", rev: "Revelation", revelations: "Revelation",
-  isa: "Isaiah", jer: "Jeremiah", gal: "Galatians", eph: "Ephesians", col: "Colossians", colo: "Colossians"
+  isa: "Isaiah", jer: "Jeremiah", gal: "Galatians", eph: "Ephesians", col: "Colossians", colo: "Colossians",
+  gen: "Genesis", ex: "Exodus", lev: "Leviticus", num: "Numbers", dt: "Deuteronomy", josh: "Joshua",
+  jdg: "Judges", judg: "Judges", "1sam": "1 Samuel", "2sam": "2 Samuel", "1kgs": "1 Kings", "2kgs": "2 Kings",
+  "1chr": "1 Chronicles", "2chr": "2 Chronicles", neh: "Nehemiah", est: "Esther", eccl: "Ecclesiastes",
+  song: "Song of Solomon", songs: "Song of Solomon", songofsongs: "Song of Solomon", sos: "Song of Solomon",
+  lam: "Lamentations", ezek: "Ezekiel", ezk: "Ezekiel", dan: "Daniel", hos: "Hosea", obad: "Obadiah",
+  mic: "Micah", nah: "Nahum", hab: "Habakkuk", zeph: "Zephaniah", hag: "Haggai", zech: "Zechariah",
+  mal: "Malachi", jas: "James", phlm: "Philemon", philem: "Philemon",
 };
 
 const squash = (s: string): string => s.toLowerCase().replace(/\s+/g, "")
 
 export function findBook(raw: string): Book | null {
   const key = squash(raw);
-  const alias = ALIASES[key]
+  const alias = Object.hasOwn(ALIASES, key) ? ALIASES[key] : undefined;  // not "constructor" etc.
   if(alias){
     return alias;
   }
@@ -49,17 +56,48 @@ export function makeAcronym(clue: string): string {
 }
 
 
-// Finds things like "John 3:16", "jn 3 16", "1 cor 13v4", "first john 4:8"
-export function parseReference(message: string): Guess | null {
-  const text = message.toLowerCase()
-    .replace(/\bfirst\s/g, "1 ").replace(/\bsecond\s/g, "2 ").replace(/\bthird\s/g, "3 ");
-  const re = /([1-3]?\s*[a-z]+)\.?\s*(\d+)\s*(?::|v|\.|\s)\s*(\d+)/g;
-  for (const [, rawBook, chapter, verse] of text.matchAll(re)) {
-    if (!rawBook || !chapter || !verse) continue;
-    const book = findBook(rawBook);
-    if (book) return { book, chapter: Number(chapter), verse: Number(verse) };
+// "1st john" / "first john" -> "1 john"
+const numberBooks = (text: string): string => text.toLowerCase()
+  .replace(/\b(first|1st)\s/g, "1 ").replace(/\b(second|2nd)\s/g, "2 ").replace(/\b(third|3rd)\s/g, "3 ");
+
+// The book name just before a chapter number, trying 3 words, then 2, then 1,
+// so "song of solomon" and "1 john" win over "solomon" and "john"
+function bookBefore(text: string): Book | null {
+  const before = text.replace(/\b(chapter|chap|ch)\.?\s*$/, "");
+  for (let n = 3; n >= 1; n--) {
+    const name = before.match(new RegExp(`(?:[1-3]\\s*)?[a-z]+(?:\\s+[a-z]+){${n - 1}}[\\s.]*$`))?.[0];
+    const book = name ? findBook(name.replace(/[\s.]+$/, "")) : null;
+    if (book) return book;
   }
   return null;
+}
+
+// Finds things like "John 3:16", "jn 3 16", "1 cor 13v4", "first john 4:8",
+// "Song of Solomon 2:1", "psalm 23 verse 1", "john chapter 3 vs 16"
+export function parseReference(message: string): Guess | null {
+  const text = numberBooks(message);
+  const chapterVerse = /(\d+)\s*(?::|\.|v(?:erse|s)?\.?|\s)\s*(\d+)/g;
+  for (const m of text.matchAll(chapterVerse)) {
+    const book = bookBefore(text.slice(0, m.index));
+    if (book) return { book, chapter: Number(m[1]), verse: Number(m[2]) };
+  }
+  return null;
+}
+
+const NUMBER_WORD = /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred)\b/;
+
+// True if a message might be a reference the simple parser missed, like "john three sixteen".
+// Only these are worth an AI call; "see you at 5pm" is not.
+export function mightBeReference(message: string): boolean {
+  const text = numberBooks(message);
+  if (!/\d/.test(text) && !NUMBER_WORD.test(text)) return false;
+  if (/\b(chapter|verse)\b/.test(text)) return true;
+  const words = text.match(/[1-3](?=\s*[a-z])|[a-z]+/g) ?? [];
+  return words.some((_, i) => [1, 2, 3].some(n => {
+    const phrase = words.slice(i, i + n).join(" ");
+    const key = squash(phrase);   // a short start like "act" (fast) is too loose; "acts" or "jn" is fine
+    return (Object.hasOwn(ALIASES, key) || BOOKS.some(b => squash(b) === key) || key.length >= 4) && findBook(phrase) !== null;
+  }));
 }
 
 export function isCorrect(guess: Guess | null, s: Scripture): boolean {

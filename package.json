@@ -2,14 +2,14 @@
   "name": "scripture-challenge",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "build": "tsc",
-    "play": "tsx src/play.ts",
     "sim": "tsx src/sim.ts",
     "dev": "tsx src/bot.ts",
-    "start": "node dist/bot.js"
+    "start": "node dist/bot.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -19,7 +19,8 @@
     "@types/papaparse": "^5.5.2",
     "@types/qrcode-terminal": "^0.12.2",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
