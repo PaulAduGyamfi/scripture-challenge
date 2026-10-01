@@ -167,7 +167,7 @@ export function reveal(): string | null {
 // ---------- Leaderboards ----------
 export function leaderboard(kind: "season" | "week" = "season"): string {
   const rows = ranked(state.load(), kind).slice(0, 10);
-  const title = kind === "week" ? "This week's leaderboard" : `${new Date().getFullYear()} season leaderboard`;
+  const title = kind === "week" ? "🥇This week's leaderboard" : `🏆${new Date().getFullYear()} season leaderboard🏆`;
   if (rows.length === 0) return `${title}\nNo points yet. Be the first!`;
   return title + "\n\n" + rows.map((p, i) =>
     `${i + 1}. ${p.name}: ${p.score} pts` + (kind === "season" ? ` (${p.wins} wins)` : "")
