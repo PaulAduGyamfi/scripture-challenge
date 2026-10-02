@@ -2,7 +2,7 @@ import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, ma
 import { aiReadGuess, makeHint, celebrate } from "./ai";
 import { loadScriptures } from "./sheet";
 import * as state from "./state";
-import type { State, Player } from "./state";
+import type { State, Player, Review } from "./state";
 import type { AnswerType, Scripture } from "./types";
 
 // A message that @mentions people: bot.ts passes `mentions` to WhatsApp so the tags ping
@@ -14,7 +14,7 @@ export interface Post {
 // What handleMessage hands back to bot.ts
 export type Reply =
   | (Post & { kind: "win" | "late" })   // "late" = correct, but someone already won today
-  | { kind: "wrong" };                  // a reference that isn't today's: react, don't reply
+  | { kind: "react"; emoji: string };   // no message, just an emoji on theirs (🤔 wrong, 👏 right but late)
 
 // "123456@c.us" -> "@123456", which WhatsApp shows as the person's name
 const tag = (id: string) => `@${id.split("@")[0]}`;
@@ -47,7 +47,13 @@ const SPEED_BONUS = [                         // minutes after the puzzle was po
   { withinMin: 120, bonus: 3 },
   { withinMin: 240, bonus: 1 },
 ] as const;
-const LATE_POINTS = 1;                        // correct after the winner, before the reveal
+const LATE_POINTS = 1;                        // for each of the next correct answers after the winner
+const LATE_SPOTS = 3;                         // how many of them
+
+// Midday Review: a verse from 2+ weeks ago, worth less, no speed bonus or bonus spots
+const REVIEW_POINTS: Record<AnswerType, number> = { both: 5, reference: 3, decoded: 2 };
+const REVIEW_MIN_AGE = 14;                    // only verses at least this many puzzles old
+const REVIEW_MIN_POOL = 10;                   // don't start until there are this many to choose from
 
 function scoreAnswer(type: AnswerType, minutes: number, hintsGiven: number) {
   const base = ANSWER_POINTS[type];
@@ -158,6 +164,8 @@ export async function newPuzzle(): Promise<string> {
   return inOrder(async () => pickPuzzle(all));
 }
 
+const puzzleOf = (v: Scripture) => v.acronym || makeAcronym(v.clue);
+
 function pickPuzzle(all: Scripture[]): string {
   const s = state.load();
   let pool = all.filter(v => !s.used.includes(formatRef(v)));
@@ -166,14 +174,16 @@ function pickPuzzle(all: Scripture[]): string {
   if (!chosen) throw new Error("No scriptures available");
 
   Object.assign(s, {
-    today: { ...chosen, postedAt: Date.now() }, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [],
+    today: { ...chosen, postedAt: Date.now() }, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [],
   });
   s.used.push(formatRef(chosen));
+  if (s.history.length === 0) s.history = s.used.slice(0, -1);   // first run: start from what's been used
+  s.history.push(formatRef(chosen));
+  if (s.review) s.review.closed = true;                          // in case 5 PM was missed
   state.save(s);
 
-  const puzzle = chosen.acronym || makeAcronym(chosen.clue);
   const hintLine = chosen.hint ? `\n\n💡 Hint: ${chosen.hint}` : "";
-  return `☀️ Good morning! Today's scripture:\n\n📜 *${puzzle}*${hintLine}\n\n` +
+  return `☀️ Good morning! Today's scripture:\n\n📜 *${puzzleOf(chosen)}*${hintLine}\n\n` +
     `💬 Reply with the reference, the decoded words, or both for the most points! 🎯\n🏆 First correct answer wins! ⏱️ Go go go! 🚀`;
 }
 
@@ -182,61 +192,119 @@ export function handleMessage(senderId: string, senderName: string, text: string
                               sentAt = Date.now()): Promise<Reply | null> {
   return inOrder(async () => {
     const s = state.load();
-    const today = s.today;
-    if (!today || s.revealed) return null;          // the answer is out: nothing left to win today
+    const today = s.today && !s.revealed ? s.today : null;    // after the reveal, nothing left to win
+    const review = s.review && !s.review.closed ? s.review : null;
+    if (!today && !review) return null;
 
     // The AI only looks at messages that might be a reference, so "see you at 5pm" costs nothing
     const guess = parseReference(text) ?? (mightBeReference(text) ? await aiReadGuess(text) : null);
-    const gotRef = isCorrect(guess, today);
-    const gotWords = matchesDecode(text, today.clue);
-    if (!gotRef && !gotWords) {
-      return guess && !s.winner ? { kind: "wrong" } : null;   // no spam, just a reaction
+    const matches = (v: Scripture) => ({ ref: isCorrect(guess, v), words: matchesDecode(text, v.clue) });
+
+    // The morning puzzle comes first; the review only gets answers that are clearly for it
+    const forToday = today ? matches(today) : { ref: false, words: false };
+    if (today && (forToday.ref || forToday.words)) {
+      if (s.winner) return lateAnswer(s, senderId, senderName, sentAt);
+      return winToday(s, today, forToday, senderId, senderName, sentAt);
     }
-    if (s.winner) return lateAnswer(s, senderId, senderName, sentAt);
+    // Today's review, even once it's closed, so a late right answer gets 👏, not 🤔
+    const lastReview = s.review && dayKey(s.review.verse.postedAt) === dayKey(sentAt) ? s.review : null;
+    const forReview = lastReview ? matches(lastReview.verse) : { ref: false, words: false };
+    if (lastReview && (forReview.ref || forReview.words)) {
+      if (!lastReview.closed) return winReview(s, lastReview, forReview, senderId, senderName, sentAt);
+      return lastReview.winner ? { kind: "react", emoji: "👏" } : null;   // after the reveal: nothing
+    }
 
-    const type: AnswerType = gotRef && gotWords ? "both" : gotRef ? "reference" : "decoded";
-    const minutes = Math.max(0, (sentAt - today.postedAt) / 60_000);
-    const { base, bonus, points } = scoreAnswer(type, minutes, s.hintsGiven);
-    const p = getPlayer(s, senderId, senderName, sentAt);
-    const before = badgesOf(p);
-    p.points += points;
-    p.weekPoints += points;
-    p.wins += 1;
-    if (p.fastestMin === null || minutes < p.fastestMin) p.fastestMin = minutes;
-    recordSolve(p, today.postedAt);
-    s.winner = { id: senderId, name: senderName, type, points, minutes };
-    state.save(s);
-
-    const rank = ranked(s, "season", sentAt).findIndex(r => r.id === senderId) + 1;
-    const bonusText = bonus ? ` + ⚡${bonus} speed bonus` : "";
-    const shout = await cheer(senderName, formatRef(today));
-    return {
-      kind: "win",
-      text: `${shout}\n\n🥇 ${tag(senderId)} got it first in ⏱️ ${formatTime(minutes)}!\n` +
-        `🎯 ${ANSWER_LABEL[type]}: ${base}${bonusText} = ✨ ${points} points ✨\n\n` +
-        `📖 ${fullRef(today)}:\n"${today.text}"\n\n` +
-        `📊 Season total: ${p.points} points (#${rank} on the leaderboard) 🏆` +
-        newsLines(p, before),
-      mentions: [senderId],
-    };
+    const somethingOpen = (today && !s.winner) || review;
+    return guess && somethingOpen ? { kind: "react", emoji: "🤔" } : null;   // no spam, just a reaction
   });
 }
 
-// Correct, but someone already won: +1 point once per person
+type Matched = { ref: boolean; words: boolean };
+const answerType = (m: Matched): AnswerType => (m.ref && m.words ? "both" : m.ref ? "reference" : "decoded");
+
+// First correct answer to the morning puzzle
+async function winToday(s: State, today: NonNullable<State["today"]>, m: Matched,
+                        senderId: string, senderName: string, sentAt: number): Promise<Reply> {
+  const type = answerType(m);
+  const minutes = Math.max(0, (sentAt - today.postedAt) / 60_000);
+  const { base, bonus, points } = scoreAnswer(type, minutes, s.hintsGiven);
+  const p = getPlayer(s, senderId, senderName, sentAt);
+  const before = badgesOf(p);
+  p.points += points;
+  p.weekPoints += points;
+  p.wins += 1;
+  if (p.fastestMin === null || minutes < p.fastestMin) p.fastestMin = minutes;
+  recordSolve(p, today.postedAt);
+  s.winner = { id: senderId, name: senderName, type, points, minutes };
+  state.save(s);
+
+  const rank = ranked(s, "season", sentAt).findIndex(r => r.id === senderId) + 1;
+  const bonusText = bonus ? ` + ⚡${bonus} speed bonus` : "";
+  const shout = await cheer(senderName, formatRef(today));
+  return {
+    kind: "win",
+    text: `${shout}\n\n🥇 ${tag(senderId)} got it first in ⏱️ ${formatTime(minutes)}!\n` +
+      `🎯 ${ANSWER_LABEL[type]}: ${base}${bonusText} = ✨ ${points} points ✨\n\n` +
+      `📖 ${fullRef(today)}:\n"${today.text}"\n\n` +
+      `📊 Season total: ${p.points} points (#${rank} on the leaderboard) 🏆` +
+      newsLines(p, before),
+    mentions: [senderId],
+  };
+}
+
+// First correct answer to the Midday Review: smaller prize, no bonus spots after it
+async function winReview(s: State, review: Review, m: Matched,
+                         senderId: string, senderName: string, sentAt: number): Promise<Reply> {
+  const type = answerType(m);
+  const points = REVIEW_POINTS[type];
+  const minutes = Math.max(0, (sentAt - review.verse.postedAt) / 60_000);
+  const p = getPlayer(s, senderId, senderName, sentAt);
+  p.points += points;
+  p.weekPoints += points;
+  review.winner = { id: senderId, name: senderName, type, points, minutes };
+  review.closed = true;
+  state.save(s);
+
+  const shout = await cheer(senderName, formatRef(review.verse));
+  return {
+    kind: "win",
+    text: `${shout}\n\n🔁 ${tag(senderId)} won the *Midday Review* in ⏱️ ${formatTime(minutes)}!\n` +
+      `🎯 ${ANSWER_LABEL[type]}: ✨ ${points} points ✨\n\n` +
+      `📖 ${fullRef(review.verse)}:\n"${review.verse.text}"\n\n` +
+      `📊 Season total: ${p.points} points` +
+      (s.today && !s.winner && !s.revealed ? "\n\n☀️ This morning's puzzle is still open! Send !today to see it" : ""),
+    mentions: [senderId],
+  };
+}
+
+// Correct, but someone already won. The next 3 people get +1 (and it counts for their streak);
+// after that it's just a well done, so copying the answer from the chat isn't worth much.
 function lateAnswer(s: State, senderId: string, senderName: string, sentAt: number): Reply | null {
   const winner = s.winner;
   if (!winner || !s.today || senderId === winner.id || s.lateSolvers.includes(senderId)) return null;
+  s.lateSolvers.push(senderId);
+  const spot = s.lateSolvers.length;
+  const firstBy = `${tag(winner.id)} got it first today 🏃💨`;
+
+  if (spot > LATE_SPOTS) {
+    state.save(s);
+    return {
+      kind: "late",
+      text: `✅ Correct, ${tag(senderId)}! 👏 All ${LATE_SPOTS} bonus spots are taken today. ${firstBy}`,
+      mentions: [senderId, winner.id],
+    };
+  }
 
   const p = getPlayer(s, senderId, senderName, sentAt);
   const before = badgesOf(p);
   p.points += LATE_POINTS;
   p.weekPoints += LATE_POINTS;
   recordSolve(p, s.today.postedAt);
-  s.lateSolvers.push(senderId);
   state.save(s);
   return {
     kind: "late",
-    text: `✅ Correct, ${tag(senderId)}! +${LATE_POINTS} point 👏 ${tag(winner.id)} got it first today 🏃💨` + newsLines(p, before),
+    text: `✅ Correct, ${tag(senderId)}! +${LATE_POINTS} point (bonus spot ${spot} of ${LATE_SPOTS}) 👏 ${firstBy}` +
+      newsLines(p, before),
     mentions: [senderId, winner.id],
   };
 }
@@ -251,11 +319,17 @@ export async function hint(): Promise<string | null> {
   });
   const today = s?.today;
   if (!s || !today) return null;
-  if (s.hintsGiven === 1) {                         // AI writes the hint outside the queue
-    const extra = await makeHint(today).catch(() => `the first word is "${today.clue.split(/\s+/)[0] ?? ""}"`);
-    return "💡 Extra hint (no more ⚡ speed bonus today): " + extra;
-  }
-  return `🔦 Last hint: it's in the book of 📘 ${today.book}!`;
+  const line = s.hintsGiven === 1                   // AI writes the hint outside the queue
+    ? "💡 Extra hint: " + await makeHint(today).catch(() => `the first word is "${today.clue.split(/\s+/)[0] ?? ""}"`)
+    : `🔦 Last hint: it's in the book of 📘 ${today.book}!`;
+
+  await inOrder(async () => {                       // remember it for !today
+    const now = state.load();
+    if (now.today?.postedAt !== today.postedAt) return;   // a new puzzle came out meanwhile
+    now.hints.push(line);
+    state.save(now);
+  });
+  return s.hintsGiven === 1 ? line.replace("Extra hint:", "Extra hint (no more ⚡ speed bonus today):") : line;
 }
 
 export function reveal(): Promise<string | null> {
@@ -266,6 +340,95 @@ export function reveal(): Promise<string | null> {
     state.save(s);
     return `😮 Nobody got it today! It was 📖 ${fullRef(s.today)}:\n\n"${s.today.text}"\n\n🙏 Meditate on it and come back tomorrow! 💪`;
   });
+}
+
+// ---------- Midday Review ----------
+// Posts a verse from an earlier morning (2+ weeks ago), so the sheet is never used up faster.
+// Returns null until enough old verses exist.
+export async function newReview(): Promise<string | null> {
+  const all = await loadScriptures();
+  return inOrder(async () => {
+    const s = state.load();
+    const old = [...new Set(s.history.slice(0, -REVIEW_MIN_AGE))];
+    const byRef = new Map(all.map(v => [formatRef(v), v]));
+    const eligible = old.filter(ref => byRef.has(ref) && ref !== (s.today && formatRef(s.today)));
+    if (eligible.length < REVIEW_MIN_POOL) return null;
+
+    let pool = eligible.filter(ref => !s.reviewed.includes(ref));
+    if (pool.length === 0) { s.reviewed = []; pool = eligible; }   // all reviewed: start over
+    const ref = pick(pool);
+    const chosen = ref ? byRef.get(ref) : undefined;
+    if (!ref || !chosen) return null;
+
+    s.review = { verse: { ...chosen, postedAt: Date.now() }, winner: null, closed: false };
+    s.reviewed.push(ref);
+    state.save(s);
+
+    const morningOpen = s.today && !s.winner && !s.revealed;
+    return `🔁 *Midday Review* 🧠\nA verse we've had before. Do you remember it?\n\n📜 *${puzzleOf(chosen)}*\n\n` +
+      `🎯 First correct answer wins ${REVIEW_POINTS.both} points! Closes at 5 PM ⏳` +
+      (morningOpen ? "\n☀️ This morning's puzzle is still open too. Send !today to see it" : "");
+  });
+}
+
+// 5 PM: closes the review, revealing the answer if nobody got it
+export function closeReview(): Promise<string | null> {
+  return inOrder(async () => {
+    const s = state.load();
+    const r = s.review;
+    if (!r || r.closed) return null;
+    r.closed = true;
+    state.save(s);
+    const morningOpen = s.today && !s.winner && !s.revealed;
+    return `🔁 Midday Review closed! Nobody got it 😮 It was 📖 ${fullRef(r.verse)}:\n\n"${r.verse.text}"` +
+      (morningOpen ? "\n\n☀️ This morning's puzzle is still open until 9 PM. Send !today to see it 💪" : "");
+  });
+}
+
+// !today: the puzzle, the hints so far, and whether someone has solved it
+export function todayPuzzle(): Post {
+  const s = state.load();
+  const morning = morningStatus(s);
+  const review = reviewStatus(s);
+  if (!review) return morning;
+  return { text: `${morning.text}\n\n${review.text}`, mentions: [...morning.mentions, ...review.mentions] };
+}
+
+// Today's Midday Review, if one was posted today
+function reviewStatus(s: State): Post | null {
+  const r = s.review;
+  if (!r || dayKey(r.verse.postedAt) !== dayKey(Date.now())) return null;
+  const head = `🔁 *Midday Review*: *${puzzleOf(r.verse)}*`;
+  if (r.winner) {
+    return { text: `${head}\n✅ Won by ${tag(r.winner.id)} in ⏱️ ${formatTime(r.winner.minutes)}!`, mentions: [r.winner.id] };
+  }
+  if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was 📖 ${fullRef(r.verse)}`, mentions: [] };
+  return { text: `${head}\n⏳ Open until 5 PM: first correct answer wins ${REVIEW_POINTS.both} points!`, mentions: [] };
+}
+
+function morningStatus(s: State): Post {
+  const v = s.today;
+  if (!v) return { text: "😴 No puzzle yet. The next one comes out at 7 AM ☀️", mentions: [] };
+
+  const lines = [`📜 Today's scripture: *${puzzleOf(v)}*`];
+  if (v.hint) lines.push(`💡 Hint: ${v.hint}`);
+  lines.push(...s.hints);
+  lines.push("");
+
+  if (s.revealed) {
+    lines.push(`🌙 Nobody got it. It was 📖 ${fullRef(v)}. A new one comes at 7 AM ☀️`);
+    return { text: lines.join("\n"), mentions: [] };
+  }
+  if (!s.winner) {
+    lines.push("⏳ Nobody has got it yet. First correct answer wins! 🏆");
+    return { text: lines.join("\n"), mentions: [] };
+  }
+  const left = Math.max(0, LATE_SPOTS - s.lateSolvers.length);
+  lines.push(`✅ Solved by ${tag(s.winner.id)} in ⏱️ ${formatTime(s.winner.minutes)}! 🎉`);
+  lines.push(left > 0
+    ? `👏 ${left} of ${LATE_SPOTS} bonus spots left: answer correctly for +${LATE_POINTS}`
+    : `👏 All ${LATE_SPOTS} bonus spots are taken. Try tomorrow's! 🙏`);
+  return { text: lines.join("\n"), mentions: [s.winner.id] };
 }
 
 // ---------- Leaderboards ----------
@@ -316,6 +479,7 @@ export function backupState(): void {
 
 // Shared by !help and !commands, so the two lists never drift apart
 const COMMANDS = [
+  "• !today: today's puzzles, hints, and who solved them 📜",
   "• !leaderboard: season standings 🏆",
   "• !week: this week's standings 📅",
   "• !me: your points, streak and badges 📊",
@@ -342,10 +506,11 @@ export function help(): string {
     `• Reference only: ${ANSWER_POINTS.reference}`,
     `• Decoded only: ${ANSWER_POINTS.decoded}`,
     `• ⚡ Speed bonus: ${bonus} (gone once a hint is out)`,
-    `• ✅ Correct after the winner: +${LATE_POINTS}`,
+    `• ✅ Next ${LATE_SPOTS} correct answers after the winner: +${LATE_POINTS} each`,
     "• 🌙 Once the answer is revealed, the day is closed",
     "",
     "💡 Hints come at noon and 6 PM, and the answer at 9 PM.",
+    `🔁 At 2 PM there's a *Midday Review* of a verse from a few weeks back: ${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} points, open until 5 PM.`,
     "🔥 Solve on days in a row to build a streak and earn badges 🎖️",
     "",
     "🤖 *Commands*",

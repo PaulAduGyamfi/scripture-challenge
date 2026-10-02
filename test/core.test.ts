@@ -15,7 +15,12 @@ const fakes = vi.hoisted(() => {
     book: "Psalms", chapter: 23, verseStart: 1, verseEnd: 1, hint: "herder",
     clue: "The LORD is my shepherd; I shall not want.", text: "The LORD is my shepherd; I shall not want.",
   };
-  return { john, psalm, verses: [john] as Scripture[] };
+  // 30 past verses (Psalms 101-130 verse 1) for the Midday Review
+  const old: Scripture[] = Array.from({ length: 30 }, (_, i) => ({
+    book: "Psalms", chapter: 101 + i, verseStart: 1, verseEnd: 1,
+    clue: `Old verse number ${101 + i}`, text: `Old verse number ${101 + i}.`,
+  }));
+  return { john, psalm, old, verses: [john] as Scripture[] };
 });
 vi.mock("../src/sheet", () => ({ loadScriptures: vi.fn(async () => fakes.verses) }));
 vi.mock("../src/ai", () => ({
@@ -31,6 +36,9 @@ import * as state from "../src/state";
 const MIN = 60_000;
 const AMA = "111@c.us";
 const KOFI = "222@c.us";
+const ESI = "333@c.us";
+const YAW = "444@c.us";
+const AKUA = "555@c.us";
 const START = new Date(2026, 2, 4, 7, 0);   // Wednesday 4 March 2026, 7:00 AM local time
 
 let postedAt = 0;
@@ -53,6 +61,13 @@ afterEach(() => {
 });
 
 describe("newPuzzle", () => {
+  it("keeps a history of every morning verse, even after a reset", async () => {
+    fakes.verses = [fakes.john, fakes.psalm];
+    await core.newPuzzle();
+    await core.newPuzzle();                            // all used: the used list starts over
+    expect(state.load().history).toEqual(["John 3:16", "Psalms 23:1", expect.any(String)]);
+  });
+
   it("posts the acronym and saves today's verse", async () => {
     const text = await core.newPuzzle();
     expect(text).toContain("*FGSLTWTHGHOBS...*");
@@ -76,7 +91,7 @@ describe("newPuzzle", () => {
 
 describe("handleMessage", () => {
   it("flags wrong references for a reaction, and ignores chatter", async () => {
-    expect(await core.handleMessage(AMA, "Ama", "John 3:17", postedAt + MIN)).toEqual({ kind: "wrong" });
+    expect(await core.handleMessage(AMA, "Ama", "John 3:17", postedAt + MIN)).toEqual({ kind: "react", emoji: "🤔" });
     expect(await core.handleMessage(AMA, "Ama", "good morning family", postedAt + MIN)).toBeNull();
   });
 
@@ -209,10 +224,81 @@ describe("taking turns", () => {
   });
 });
 
+describe("bonus spots after the winner", () => {
+  const answer = (id: string, name: string) => core.handleMessage(id, name, "John 3:16", postedAt + 5 * MIN);
+
+  it("gives +1 to the next 3 correct answers only", async () => {
+    await answer(AMA, "Ama");
+    expect(textOf(await answer(KOFI, "Kofi"))).toContain("+1 point (bonus spot 1 of 3)");
+    await answer(ESI, "Esi");
+    expect(textOf(await answer(YAW, "Yaw"))).toContain("bonus spot 3 of 3");
+
+    const fourth = await answer(AKUA, "Akua");
+    expect(textOf(fourth)).toContain("All 3 bonus spots are taken today");
+    expect(textOf(fourth)).not.toContain("+1");
+
+    const scores = state.load().scores;
+    expect([KOFI, ESI, YAW].map(id => scores[id]?.points)).toEqual([1, 1, 1]);
+    expect(scores[AKUA]).toBeUndefined();             // no points, and no streak
+  });
+
+  it("answers each late person only once", async () => {
+    await answer(AMA, "Ama");
+    for (const [id, name] of [[KOFI, "Kofi"], [ESI, "Esi"], [YAW, "Yaw"], [AKUA, "Akua"]] as const) await answer(id, name);
+    expect(await answer(AKUA, "Akua")).toBeNull();
+    expect(await answer(KOFI, "Kofi")).toBeNull();
+  });
+});
+
+describe("!today", () => {
+  it("says when there's no puzzle yet", () => {
+    fs.rmSync("state.json");
+    expect(core.todayPuzzle().text).toContain("No puzzle yet");
+  });
+
+  it("shows the puzzle and every hint so far while it's open", async () => {
+    fakes.verses = [fakes.psalm];
+    await core.newPuzzle();
+    await core.hint();
+    expect(core.todayPuzzle()).toEqual({
+      text: "📜 Today's scripture: *TLIMS; ISNW*\n💡 Hint: herder\n💡 Extra hint: behest; lifelong\n\n" +
+        "⏳ Nobody has got it yet. First correct answer wins! 🏆",
+      mentions: [],
+    });
+  });
+
+  it("tags who solved it, without giving away the answer, and counts the spots left", async () => {
+    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + 3 * MIN);
+    await core.handleMessage(KOFI, "Kofi", "John 3:16", postedAt + 4 * MIN);
+    const today = core.todayPuzzle();
+    expect(today.mentions).toEqual([AMA]);
+    expect(today.text).toContain("✅ Solved by @111 in ⏱️ 3 min!");
+    expect(today.text).toContain("2 of 3 bonus spots left");
+    expect(today.text).not.toContain("John 3:16");
+  });
+
+  it("says when every bonus spot is taken", async () => {
+    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);
+    for (const id of [KOFI, ESI, YAW]) await core.handleMessage(id, "x", "John 3:16", postedAt + 2 * MIN);
+    expect(core.todayPuzzle().text).toContain("All 3 bonus spots are taken");
+  });
+
+  it("shows the answer once it has been revealed", async () => {
+    await core.reveal();
+    expect(core.todayPuzzle().text).toContain("Nobody got it. It was 📖 John 3:16 (KJV)");
+  });
+});
+
 describe("hint and reveal", () => {
   it("gives an AI hint first, then the book", async () => {
-    expect(await core.hint()).toContain("behest; lifelong");
+    expect(await core.hint()).toBe("💡 Extra hint (no more ⚡ speed bonus today): behest; lifelong");
     expect(await core.hint()).toContain("book of 📘 John");
+  });
+
+  it("remembers each hint for !today", async () => {
+    await core.hint();
+    await core.hint();
+    expect(state.load().hints).toEqual(["💡 Extra hint: behest; lifelong", "🔦 Last hint: it's in the book of 📘 John!"]);
   });
 
   it("falls back to the first word when the AI is down", async () => {
@@ -294,7 +380,7 @@ describe("replyTo", () => {
 });
 
 describe("help and commands", () => {
-  const PLAYER_COMMANDS = ["!leaderboard", "!week", "!me", "!streak", "!commands", "!help"];
+  const PLAYER_COMMANDS = ["!today", "!leaderboard", "!week", "!me", "!streak", "!commands", "!help"];
 
   it("!help lists the points and every command", () => {
     const text = core.help();
@@ -354,5 +440,116 @@ describe("leaderboards and stats", () => {
       mentions: [AMA],
     });
     expect(core.myStats(KOFI)).toEqual({ text: expect.stringContaining("@222, no points yet"), mentions: [KOFI] });
+  });
+});
+
+describe("Midday Review", () => {
+  const TWO_PM = START.getTime() + 7 * 60 * MIN;
+
+  // As if the 30 old psalms were earlier mornings, followed by today's John 3:16
+  function withHistory(count = 30) {
+    fakes.verses = [fakes.john, ...fakes.old];
+    const s = state.load();
+    s.history = [...fakes.old.slice(0, count).map(v => `Psalms ${v.chapter}:1`), "John 3:16"];
+    state.save(s);
+    vi.setSystemTime(TWO_PM);
+  }
+  const reviewRef = () => {
+    const v = state.load().review?.verse;
+    return v ? `${v.book} ${v.chapter}:${v.verseStart}` : "";
+  };
+
+  it("waits until there are enough old verses", async () => {
+    withHistory(22);                                   // 22 + today - 14 recent = 9 old: not enough
+    expect(await core.newReview()).toBeNull();
+    expect(state.load().review).toBeNull();
+  });
+
+  it("posts a verse from 2+ weeks ago, clearly labelled", async () => {
+    withHistory();
+    const text = await core.newReview();
+    expect(text).toContain("🔁 *Midday Review*");
+    expect(text).toContain("Closes at 5 PM");
+    expect(text).toContain("This morning's puzzle is still open too");
+    const chapter = state.load().review?.verse.chapter ?? 0;
+    expect(chapter).toBeGreaterThanOrEqual(101);
+    expect(chapter).toBeLessThanOrEqual(117);         // not one of the 14 most recent (118-130)
+  });
+
+  it("doesn't repeat a review verse until all have had a turn", async () => {
+    withHistory();
+    const seen = new Set<string>();
+    for (let i = 0; i < 17; i++) { await core.newReview(); seen.add(reviewRef()); }
+    expect(seen.size).toBe(17);
+    await core.newReview();                            // all 17 used: starts over
+    expect(state.load().reviewed).toHaveLength(1);
+  });
+
+  it("gives the first correct answer the smaller review points, without counting a win", async () => {
+    withHistory();
+    await core.newReview();
+    const reply = await core.handleMessage(AMA, "Ama", reviewRef(), TWO_PM + 4 * MIN);
+    expect(reply?.kind).toBe("win");
+    expect(textOf(reply)).toContain("@111 won the *Midday Review* in ⏱️ 4 min");
+    expect(textOf(reply)).toContain("Reference: ✨ 3 points ✨");
+    expect(textOf(reply)).toContain("This morning's puzzle is still open");
+    expect(state.load().scores[AMA]).toMatchObject({ points: 3, wins: 0, streak: 0 });
+    expect(state.load().review).toMatchObject({ closed: true, winner: { id: AMA } });
+  });
+
+  it("just reacts 👏 to correct review answers after the winner", async () => {
+    withHistory();
+    await core.newReview();
+    await core.handleMessage(AMA, "Ama", reviewRef(), TWO_PM + MIN);
+    expect(await core.handleMessage(KOFI, "Kofi", reviewRef(), TWO_PM + 2 * MIN)).toEqual({ kind: "react", emoji: "👏" });
+    expect(state.load().scores[KOFI]).toBeUndefined();
+  });
+
+  it("still sends morning answers to the morning puzzle", async () => {
+    withHistory();
+    await core.newReview();
+    const reply = await core.handleMessage(AMA, "Ama", "John 3:16", TWO_PM);
+    expect(textOf(reply)).toContain("got it first");
+    expect(state.load().review?.closed).toBe(false);
+  });
+
+  it("reacts 🤔 to a wrong reference while only the review is open", async () => {
+    await core.handleMessage(KOFI, "Kofi", "John 3:16", postedAt + MIN);   // morning solved
+    withHistory();
+    await core.newReview();
+    expect(await core.handleMessage(AMA, "Ama", "Psalms 150:1", TWO_PM + MIN)).toEqual({ kind: "react", emoji: "🤔" });
+  });
+
+  it("reveals the answer at 5 PM if nobody got it, then ignores answers", async () => {
+    withHistory();
+    await core.newReview();
+    const ref = reviewRef();
+    expect(await core.closeReview()).toContain(`Nobody got it 😮 It was 📖 ${ref}`);
+    expect(await core.closeReview()).toBeNull();
+    expect(await core.handleMessage(AMA, "Ama", ref, TWO_PM + 4 * 60 * MIN)).toBeNull();
+  });
+
+  it("closes quietly at 5 PM if someone already won", async () => {
+    withHistory();
+    await core.newReview();
+    await core.handleMessage(AMA, "Ama", reviewRef(), TWO_PM + MIN);
+    expect(await core.closeReview()).toBeNull();
+  });
+
+  it("shows up in !today, after the morning puzzle", async () => {
+    withHistory();
+    await core.newReview();
+    const open = core.todayPuzzle().text;
+    expect(open.indexOf("Today's scripture")).toBeLessThan(open.indexOf("Midday Review"));
+    expect(open).toContain("⏳ Open until 5 PM");
+    await core.handleMessage(AMA, "Ama", reviewRef(), TWO_PM + MIN);
+    expect(core.todayPuzzle()).toMatchObject({ text: expect.stringContaining("✅ Won by @111"), mentions: [AMA] });
+  });
+
+  it("is closed by the next morning's puzzle if 5 PM was missed", async () => {
+    withHistory();
+    await core.newReview();
+    await core.newPuzzle();
+    expect(state.load().review?.closed).toBe(true);
   });
 });

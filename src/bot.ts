@@ -53,8 +53,12 @@ const withIntro = (intro: string, p: core.Post): core.Post => ({ ...p, text: int
 
 // An emoji reaction instead of a message, so guesses never spam the group
 async function react(msg: Message, emoji: string): Promise<void> {
-  try { await msg.react(emoji); }
-  catch { /* nice to have only */ }
+  try {
+    await msg.react(emoji);
+    console.log(`Reacted ${emoji} to ${msg.id._serialized}`);
+  } catch (err) {
+    console.error(`Couldn't react ${emoji}:`, err);   // nice to have only, but say why
+  }
 }
 
 client.on("qr", qr => qrcode.generate(qr, { small: true }));
@@ -87,6 +91,7 @@ async function onMessage(msg: Message): Promise<void> {
   if (command === "!week") return replyLikeAPerson(msg, core.leaderboard("week"));
   if (command === "!me") return replyLikeAPerson(msg, core.myStats(senderId));
   if (command === "!streak") return replyLikeAPerson(msg, core.streak(senderId));
+  if (command === "!today" || command === "!puzzle") return replyLikeAPerson(msg, core.todayPuzzle());
   if (command === "!commands") return replyLikeAPerson(msg, core.commands());
   if (command === "!help") return replyLikeAPerson(msg, core.help());
 
@@ -94,6 +99,8 @@ async function onMessage(msg: Message): Promise<void> {
     if (body === "!new") return post(await core.newPuzzle());
     if (body === "!hint") return post(await core.hint());
     if (body === "!reveal") return post(await core.reveal());
+    if (body === "!review") return post(await core.newReview());
+    if (body === "!closereview") return post(await core.closeReview());
   }
 
   const contact = await msg.getContact();
@@ -101,10 +108,10 @@ async function onMessage(msg: Message): Promise<void> {
   const sentAt = msg.timestamp * 1000;              // WhatsApp's send time, in ms
   const reply = await core.handleMessage(senderId, name, body, sentAt); // winner decided here
   if (!reply) return;
-  if (reply.kind === "wrong") return react(msg, "🤔");
+  if (reply.kind === "react") return react(msg, reply.emoji);
 
   // At most one "already solved" reply per minute, so a rush of late answers isn't spammy.
-  // Their +1 point still counts; a 👏 tells them so.
+  // Their points (if they got a bonus spot) still count; a 👏 tells them they were right.
   if (reply.kind === "late") {
     if (Date.now() - lastLateReply < 60_000) return react(msg, "👏");
     lastLateReply = Date.now();
@@ -124,6 +131,8 @@ const at = (time: string, job: () => Promise<void>) =>
 at("55 6 * * *", async () => { core.backupState(); });       // 6:55 AM backup of state.json
 at("0 7 * * *",  async () => post(await core.newPuzzle()));   // 7:00 AM puzzle
 at("0 12 * * *", async () => post(await core.hint()));        // noon hint
+at("0 14 * * *", async () => post(await core.newReview()));   // 2 PM Midday Review
+at("0 17 * * *", async () => post(await core.closeReview())); // 5 PM review closes
 at("0 18 * * *", async () => post(await core.hint()));        // 6 PM book hint
 at("0 21 * * *", async () => post(await core.reveal()));      // 9 PM reveal
 at("0 20 * * 0", async () =>                                   // Sunday 8 PM weekly wrap-up

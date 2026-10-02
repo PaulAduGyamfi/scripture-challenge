@@ -40,18 +40,30 @@ const WinnerSchema = z.object({
   minutes: z.number(),
 });
 
+// The 2 PM Midday Review: a verse from an earlier morning, open until 5 PM
+const ReviewSchema = z.object({
+  verse: TodaySchema,
+  winner: WinnerSchema.nullable(),
+  closed: z.boolean(),                                // won, or revealed at 5 PM
+});
+
 const StateSchema = z.object({
   today: TodaySchema.nullable(),
   winner: WinnerSchema.nullable(),
   hintsGiven: z.number(),
   revealed: z.boolean().default(false),               // the 9 PM reveal went out
-  lateSolvers: z.array(z.string()).default([]),       // got today's +1 for a correct late answer
+  lateSolvers: z.array(z.string()).default([]),       // correct after the winner, in order; the first 3 got +1
+  hints: z.array(z.string()).default([]),             // hints posted today, for !today
   used: z.array(z.string()),
+  history: z.array(z.string()).default([]),           // every morning verse in order; never reset
+  review: ReviewSchema.nullable().default(null),
+  reviewed: z.array(z.string()).default([]),          // review verses so far; reset when all have had a turn
   scores: z.record(z.string(), PlayerSchema),
 });
 
 export type State = z.infer<typeof StateSchema>;
 export type Player = z.infer<typeof PlayerSchema>;
+export type Review = z.infer<typeof ReviewSchema>;
 
 const FILE = "state.json";
 const BACKUPS = "backups";
@@ -60,7 +72,8 @@ const RESTORE = `Copy the newest file from the ${BACKUPS} folder over ${FILE}.`;
 
 export function load(): State {
   if (!fs.existsSync(FILE)) {
-    return { today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], used: [], scores: {} };
+    return { today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], used: [],
+      history: [], review: null, reviewed: [], scores: {} };
   }
   let raw: unknown;
   try {

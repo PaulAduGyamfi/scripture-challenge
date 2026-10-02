@@ -12,7 +12,8 @@ afterEach(() => process.chdir(home));
 describe("state", () => {
   it("starts empty when there is no state.json", () => {
     expect(state.load()).toEqual({
-      today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], used: [], scores: {},
+      today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], used: [],
+      history: [], review: null, reviewed: [], scores: {},
     });
   });
 
@@ -34,7 +35,7 @@ describe("state", () => {
       scores: { "111@c.us": { name: "Ama", points: 6, wins: 1, fastestMin: 2, season: 2026, week: "2026-03-02", weekPoints: 6 } },
     }));
     const s = state.load();
-    expect(s).toMatchObject({ revealed: false, lateSolvers: [] });
+    expect(s).toMatchObject({ revealed: false, lateSolvers: [], hints: [], history: [], review: null, reviewed: [] });
     expect(s.scores["111@c.us"]).toMatchObject({ points: 6, streak: 0, bestStreak: 0, lastSolvedDay: null });
   });
 

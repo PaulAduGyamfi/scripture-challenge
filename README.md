@@ -19,6 +19,8 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 |---|---|
 | 7:00 AM | Today's verse is posted as an acronym |
 | 12:00 PM | Extra hint, written by AI (the speed bonus ends) |
+| 2:00 PM | 🔁 Midday Review: a verse from 2+ weeks ago, open until 5 PM |
+| 5:00 PM | Midday Review closes (answer revealed if nobody got it) |
 | 6:00 PM | Last hint: the book of the Bible |
 | 9:00 PM | If nobody got it, the answer is revealed and the day closes |
 | Sunday 8 PM | Weekly standings |
@@ -32,7 +34,8 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | Reference only (John 3:16) | 6 |
 | Decoded words only | 3 |
 | Speed bonus, before any hint | +5 within 30 min, +3 within 2 hr, +1 within 4 hr |
-| Correct after someone else won | +1 |
+| One of the next 3 correct answers after the winner | +1 |
+| Midday Review (first correct only) | 5 / 3 / 2 for both / reference / decoded |
 
 - **Forgiving answers:** the bot understands "jn 3 16", "first john 4:8", "Song of Solomon 2:1" and similar. Messier guesses like "john three sixteen" are read by AI.
 - **Typos are fine:** decoded words can have small typos, or a word missing.
@@ -44,6 +47,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 
 | Command | Shows |
 |---|---|
+| `!today` | Today's puzzle, the hints so far, and who solved it |
 | `!help` | Rules and commands |
 | `!leaderboard` | Season standings |
 | `!week` | This week's standings |
@@ -51,7 +55,9 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | `!streak` | Your current streak |
 | `!commands` | Just the list of commands |
 
-The admin can also send `!new`, `!hint` and `!reveal` to run a step early, which is handy for testing.
+The admin can also send `!new`, `!hint`, `!reveal`, `!review` and `!closereview` to run a step early, which is handy for testing.
+
+**About the Midday Review:** it reuses verses the group had at least 14 puzzles ago, so it never uses up your sheet faster. It's also good for memorising Scripture. It switches on by itself once there are 10 old verses to choose from, about 3–4 weeks after you start.
 
 ## Before you start
 
@@ -220,9 +226,10 @@ npm run sim
 
 ```
 /new                  post a puzzle
+/review               post a Midday Review (needs enough old verses)
 Ama: John 3:16        answer as "Ama"
 /wait 45              pretend 45 minutes passed
-/hint  /reveal  /board  /week  /me ama  /streak ama  /commands  /help
+/hint  /reveal  /board  /week  /me ama  /streak ama  /today  /commands  /help
 ```
 
 ## Development
