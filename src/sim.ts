@@ -3,7 +3,7 @@ import * as core from "./core";
 
 let fakeMinutes = 0; // "/wait 20" pretends 20 minutes have passed, to test speed points
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-console.log("Commands: /new /wait 20 /hint /reveal /board /week /me Name /streak Name /help, or  Name: message");
+console.log("Commands: /new /wait 20 /hint /reveal /board /week /me Name /streak Name /commands /help, or  Name: message");
 
 rl.on("line", async (line: string) => {
   try {
@@ -18,6 +18,7 @@ rl.on("line", async (line: string) => {
     else if (cmd === "/me") out = core.myStats(arg.toLowerCase());
     else if (cmd === "/streak") out = core.streak(arg.toLowerCase());
     else if (cmd === "/help") out = core.help();
+    else if (cmd === "/commands") out = core.commands();
     else if (line.includes(":")) {
       const i = line.indexOf(":");
       const name = line.slice(0, i).trim();

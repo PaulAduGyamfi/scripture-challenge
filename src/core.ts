@@ -19,6 +19,14 @@ export type Reply =
 // "123456@c.us" -> "@123456", which WhatsApp shows as the person's name
 const tag = (id: string) => `@${id.split("@")[0]}`;
 
+// Every reply tags the person it answers: "@Ama 📋 Commands...".
+// Replies that already tag them (like !me) are left alone, so nobody is tagged twice.
+export function replyTo(senderId: string, out: string | Post): Post {
+  const post = typeof out === "string" ? { text: out, mentions: [] } : out;
+  if (post.mentions.includes(senderId)) return post;
+  return { text: `${tag(senderId)} ${post.text}`, mentions: [senderId, ...post.mentions] };
+}
+
 // Everything that changes state.json waits its turn here, one at a time, in order.
 // Without this, a slow AI check could let a later answer "win", or an answer that was
 // waiting on the AI could save over the noon hint or the new puzzle with an old copy.
@@ -277,7 +285,9 @@ export function myStats(senderId: string): Post {
   const board = ranked(state.load(), "season");
   const i = board.findIndex(r => r.id === senderId);
   const p = board[i];
-  if (!p) return { text: "🌱 No points yet this season. Tomorrow could be your day! 💪", mentions: [] };
+  if (!p) {
+    return { text: `🌱 ${tag(senderId)}, no points yet this season. Tomorrow could be your day! 💪`, mentions: [senderId] };
+  }
   const badges = badgesOf(p);
   const text = `📊 ${tag(p.id)}: ⭐ ${p.points} pts, 🏅 ${p.wins} wins, 🏆 #${i + 1} this season.\n` +
     `⚡ Fastest solve: ${p.fastestMin === null ? "none yet" : formatTime(p.fastestMin)}\n` +
@@ -304,6 +314,20 @@ export function backupState(): void {
   if (file) console.log(`Backed up scores to ${file}`);
 }
 
+// Shared by !help and !commands, so the two lists never drift apart
+const COMMANDS = [
+  "• !leaderboard: season standings 🏆",
+  "• !week: this week's standings 📅",
+  "• !me: your points, streak and badges 📊",
+  "• !streak: your current streak 🔥",
+  "• !commands: just this list 📋",
+  "• !help: rules, points and commands 📖",
+];
+
+export function commands(): string {
+  return ["📋 *Commands*", ...COMMANDS].join("\n");
+}
+
 export function help(): string {
   const within = (min: number) => (min < 60 ? `${min} min` : `${min / 60} hr`);
   const bonus = SPEED_BONUS.map(t => `+${t.bonus} within ${within(t.withinMin)}`).join(", ");
@@ -325,10 +349,6 @@ export function help(): string {
     "🔥 Solve on days in a row to build a streak and earn badges 🎖️",
     "",
     "🤖 *Commands*",
-    "• !leaderboard: season standings 🏆",
-    "• !week: this week's standings 📅",
-    "• !me: your points, streak and badges 📊",
-    "• !streak: your current streak 🔥",
-    "• !help: this message",
+    ...COMMANDS,
   ].join("\n");
 }

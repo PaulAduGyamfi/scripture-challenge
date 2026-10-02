@@ -49,6 +49,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | `!week` | This week's standings |
 | `!me` | Your points, streak and badges |
 | `!streak` | Your current streak |
+| `!commands` | Just the list of commands |
 
 The admin can also send `!new`, `!hint` and `!reveal` to run a step early, which is handy for testing.
 
@@ -221,7 +222,7 @@ npm run sim
 /new                  post a puzzle
 Ama: John 3:16        answer as "Ama"
 /wait 45              pretend 45 minutes passed
-/hint  /reveal  /board  /week  /me ama  /streak ama  /help
+/hint  /reveal  /board  /week  /me ama  /streak ama  /commands  /help
 ```
 
 ## Development

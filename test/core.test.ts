@@ -277,11 +277,37 @@ describe("streaks and badges", () => {
   });
 });
 
-describe("help", () => {
-  it("lists the points and every command", () => {
+describe("replyTo", () => {
+  it("tags the person being answered", () => {
+    expect(core.replyTo(AMA, "📋 *Commands*")).toEqual({ text: "@111 📋 *Commands*", mentions: [AMA] });
+  });
+
+  it("keeps the other people a reply already tags", () => {
+    expect(core.replyTo(AMA, { text: "🥇 @222: 11 pts", mentions: [KOFI] }))
+      .toEqual({ text: "@111 🥇 @222: 11 pts", mentions: [AMA, KOFI] });
+  });
+
+  it("doesn't tag twice when the reply already tags them", () => {
+    const stats = { text: "📊 @111: ⭐ 11 pts", mentions: [AMA] };
+    expect(core.replyTo(AMA, stats)).toEqual(stats);
+  });
+});
+
+describe("help and commands", () => {
+  const PLAYER_COMMANDS = ["!leaderboard", "!week", "!me", "!streak", "!commands", "!help"];
+
+  it("!help lists the points and every command", () => {
     const text = core.help();
     expect(text).toContain("+5 within 30 min, +3 within 2 hr, +1 within 4 hr");
-    for (const cmd of ["!leaderboard", "!week", "!me", "!streak", "!help"]) expect(text).toContain(cmd);
+    for (const cmd of PLAYER_COMMANDS) expect(text).toContain(cmd);
+    expect(text).not.toContain("!new");
+  });
+
+  it("!commands lists just the commands", () => {
+    const text = core.commands();
+    expect(text.startsWith("📋 *Commands*")).toBe(true);
+    for (const cmd of PLAYER_COMMANDS) expect(text).toContain(cmd);
+    expect(text).not.toContain("Points");
     expect(text).not.toContain("!new");
   });
 });
@@ -327,6 +353,6 @@ describe("leaderboards and stats", () => {
       text: expect.stringMatching(/@111: ⭐ 11 pts, 🏅 1 wins, 🏆 #1 this season[\s\S]*Fastest solve: 3 min[\s\S]*Streak: 1 days \(best 1\)[\s\S]*Badges: 🌱 First Fruits/),
       mentions: [AMA],
     });
-    expect(core.myStats(KOFI).mentions).toEqual([]);
+    expect(core.myStats(KOFI)).toEqual({ text: expect.stringContaining("@222, no points yet"), mentions: [KOFI] });
   });
 });

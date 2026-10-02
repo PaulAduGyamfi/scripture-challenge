@@ -33,7 +33,7 @@ type Outgoing = string | core.Post | null;
 const asPost = (out: string | core.Post): core.Post => typeof out === "string" ? { text: out, mentions: [] } : out;
 
 async function replyLikeAPerson(msg: Message, out: string | core.Post): Promise<void> {
-  const { text, mentions } = asPost(out);
+  const { text, mentions } = core.replyTo(msg.author ?? msg.from, out);   // always tags who asked
   try {
     await (await msg.getChat()).sendStateTyping();  // shows "typing..." like a person
   } catch {
@@ -87,6 +87,7 @@ async function onMessage(msg: Message): Promise<void> {
   if (command === "!week") return replyLikeAPerson(msg, core.leaderboard("week"));
   if (command === "!me") return replyLikeAPerson(msg, core.myStats(senderId));
   if (command === "!streak") return replyLikeAPerson(msg, core.streak(senderId));
+  if (command === "!commands") return replyLikeAPerson(msg, core.commands());
   if (command === "!help") return replyLikeAPerson(msg, core.help());
 
   if (ADMIN_ID && senderId === ADMIN_ID) {          // test commands, only for you
