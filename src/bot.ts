@@ -87,8 +87,8 @@ async function onMessage(msg: Message): Promise<void> {
 
   // Anyone can use these
   const command = body.toLowerCase();
-  if (command === "!leaderboard") return replyLikeAPerson(msg, core.leaderboard("season"));
-  if (command === "!week") return replyLikeAPerson(msg, core.leaderboard("week"));
+  if (command === "!leaderboard") return replyLikeAPerson(msg, core.leaderboard("season", senderId));
+  if (command === "!week") return replyLikeAPerson(msg, core.leaderboard("week", senderId));
   if (command === "!me") return replyLikeAPerson(msg, core.myStats(senderId));
   if (command === "!streak") return replyLikeAPerson(msg, core.streak(senderId));
   if (command === "!today" || command === "!puzzle") return replyLikeAPerson(msg, core.todayPuzzle());

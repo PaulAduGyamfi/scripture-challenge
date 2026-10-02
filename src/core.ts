@@ -433,15 +433,27 @@ function morningStatus(s: State): Post {
 
 // ---------- Leaderboards ----------
 const MEDALS = ["🥇", "🥈", "🥉"];
+const TOP = 10;                               // the main board
+const HONORABLE = 5;                          // ranks 11-15, listed under it
 
-export function leaderboard(kind: "season" | "week" = "season"): Post {
-  const rows = ranked(state.load(), kind).slice(0, 10);
+// Top 10, then 5 honourable mentions. Anyone asking from further down sees their own place.
+export function leaderboard(kind: "season" | "week" = "season", askerId?: string): Post {
+  const all = ranked(state.load(), kind);
   const title = kind === "week" ? "📅 This week's leaderboard 🔥" : `🏆 ${new Date().getFullYear()} season leaderboard 🏆`;
-  if (rows.length === 0) return { text: `${title}\n🤷 No points yet. Be the first! 🚀`, mentions: [] };
-  const text = title + "\n\n" + rows.map((p, i) =>
-    `${MEDALS[i] ?? `${i + 1}.`} ${tag(p.id)}: ${p.score} pts` + (kind === "season" ? ` (🏅 ${p.wins} wins)` : "")
-  ).join("\n");
-  return { text, mentions: rows.map(p => p.id) };
+  if (all.length === 0) return { text: `${title}\n🤷 No points yet. Be the first! 🚀`, mentions: [] };
+
+  const row = (p: Ranked, i: number) =>
+    `${MEDALS[i] ?? `${i + 1}.`} ${tag(p.id)}: ${p.score} pts` + (kind === "season" ? ` (🏅 ${p.wins} wins)` : "");
+  const top = all.slice(0, TOP);
+  const honorable = all.slice(TOP, TOP + HONORABLE);
+  const lines = [title, "", ...top.map(row)];
+  if (honorable.length) lines.push("", "🎖️ *Honourable mentions*", ...honorable.map((p, i) => row(p, TOP + i)));
+
+  const mine = askerId ? all.findIndex(p => p.id === askerId) : -1;
+  if (mine >= TOP + HONORABLE) {
+    lines.push("", `📍 You're #${mine + 1} with ${all[mine]?.score} pts. Keep going, you'll climb! 💪`);
+  }
+  return { text: lines.join("\n"), mentions: [...top, ...honorable].map(p => p.id) };
 }
 
 export function myStats(senderId: string): Post {

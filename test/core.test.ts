@@ -398,6 +398,45 @@ describe("help and commands", () => {
   });
 });
 
+describe("big leaderboards", () => {
+  // 20 players: "1@c.us" has 200 pts, "2@c.us" 190 ... "20@c.us" 10
+  async function crowd() {
+    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);   // just to learn this week's key
+    const s = state.load();
+    const week = s.scores[AMA]?.week ?? "";
+    delete s.scores[AMA];
+    for (let n = 1; n <= 20; n++) {
+      s.scores[`${n}@c.us`] = {
+        name: `P${n}`, points: 210 - n * 10, wins: 1, fastestMin: 5, season: 2026, week,
+        weekPoints: 210 - n * 10, streak: 0, bestStreak: 0, lastSolvedDay: null,
+      };
+    }
+    state.save(s);
+  }
+
+  it("shows the top 10, then 5 honourable mentions, and no more", async () => {
+    await crowd();
+    const board = core.leaderboard("season");
+    expect(board.text).toContain("🥇 @1: 200 pts");
+    expect(board.text).toContain("10. @10: 110 pts");
+    expect(board.text).toContain("🎖️ *Honourable mentions*\n11. @11: 100 pts");
+    expect(board.text).toContain("15. @15: 60 pts");
+    expect(board.text).not.toContain("@16");
+    expect(board.mentions).toHaveLength(15);
+  });
+
+  it("tells someone further down where they stand", async () => {
+    await crowd();
+    expect(core.leaderboard("week", "18@c.us").text).toContain("📍 You're #18 with 30 pts");
+    expect(core.leaderboard("week", "3@c.us").text).not.toContain("📍");    // already on the board
+  });
+
+  it("leaves out the honourable mentions when there aren't enough players", async () => {
+    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);
+    expect(core.leaderboard().text).not.toContain("Honourable");
+  });
+});
+
 describe("leaderboards and stats", () => {
   async function win(id: string, name: string, minutes = 1) {
     await core.newPuzzle();
