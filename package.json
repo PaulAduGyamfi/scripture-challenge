@@ -13,8 +13,8 @@
     "deploy": "./scripts/deploy.sh"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Paul Adu-Gyamfi",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^26.6.3",
     "@types/papaparse": "^5.5.2",

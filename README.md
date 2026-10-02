@@ -254,3 +254,7 @@ The tests fake the AI, the sheet and WhatsApp, so they run offline with no keys.
 | `Missing ... in your .env file` | That setting is empty in `.env` |
 | A verse never comes up | Its sheet row has a mistake. `pm2 logs` shows `Sheet row N skipped: ...` |
 | `state.json looks damaged` | Restore from `backups/` (see Backups) |
+
+## License
+
+[MIT](LICENSE). Free to use, change and share, including for your own church.
