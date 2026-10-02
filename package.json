@@ -9,7 +9,8 @@
     "dev": "tsx src/bot.ts",
     "start": "node dist/bot.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy": "./scripts/deploy.sh"
   },
   "keywords": [],
   "author": "",

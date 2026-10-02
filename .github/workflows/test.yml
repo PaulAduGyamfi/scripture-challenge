@@ -1,4 +1,5 @@
-name: Tests
+# Tests every push. Pushes to main that pass are then deployed to the server.
+name: Tests and deploy
 
 on:
   push:
@@ -18,3 +19,22 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+  deploy:
+    needs: test                        # only if every test passed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: deploy                # two quick pushes deploy one after the other, never at once
+    steps:
+      - name: Run the deploy script on the server
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The server only lets this key run scripts/deploy.sh (see authorized_keys)
+          ssh -T -o BatchMode=yes -i ~/.ssh/deploy_key root@"$HOST"
