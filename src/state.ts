@@ -30,6 +30,7 @@ const PlayerSchema = z.object({
   streak: z.number().default(0),
   bestStreak: z.number().default(0),
   lastSolvedDay: z.string().nullable().default(null),   // "2026-03-04", the puzzle's day
+  emojiWins: z.number().default(0),                     // Emoji Bible wins this season
 });
 
 const WinnerSchema = z.object({
@@ -47,6 +48,17 @@ const ReviewSchema = z.object({
   closed: z.boolean(),                                // won, or revealed at 5 PM
 });
 
+// The 7 PM Emoji Bible game, open until 8 PM
+const EmojiGameSchema = z.object({
+  story: z.string(),
+  answers: z.array(z.string()),
+  reference: z.string().optional(),
+  emoji: z.string(),
+  postedAt: z.number(),
+  winner: WinnerSchema.omit({ type: true }).nullable(),
+  closed: z.boolean(),
+});
+
 const StateSchema = z.object({
   today: TodaySchema.nullable(),
   winner: WinnerSchema.nullable(),
@@ -58,12 +70,15 @@ const StateSchema = z.object({
   history: z.array(z.string()).default([]),           // every morning verse in order; never reset
   review: ReviewSchema.nullable().default(null),
   reviewed: z.array(z.string()).default([]),          // review verses so far; reset when all have had a turn
+  emojiGame: EmojiGameSchema.nullable().default(null),
+  storiesUsed: z.array(z.string()).default([]),       // Emoji Bible stories so far; reset when all used
   scores: z.record(z.string(), PlayerSchema),
 });
 
 export type State = z.infer<typeof StateSchema>;
 export type Player = z.infer<typeof PlayerSchema>;
 export type Review = z.infer<typeof ReviewSchema>;
+export type EmojiGame = z.infer<typeof EmojiGameSchema>;
 
 const FILE = "state.json";
 const BACKUPS = "backups";
@@ -73,7 +88,7 @@ const RESTORE = `Copy the newest file from the ${BACKUPS} folder over ${FILE}.`;
 export function load(): State {
   if (!fs.existsSync(FILE)) {
     return { today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], used: [],
-      history: [], review: null, reviewed: [], scores: {} };
+      history: [], review: null, reviewed: [], emojiGame: null, storiesUsed: [], scores: {} };
   }
   let raw: unknown;
   try {

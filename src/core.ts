@@ -1,8 +1,8 @@
-import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode } from "./game";
-import { aiReadGuess, makeHint, celebrate } from "./ai";
-import { loadScriptures } from "./sheet";
+import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory } from "./game";
+import { aiReadGuess, makeHint, celebrate, makeEmoji } from "./ai";
+import { loadScriptures, loadStories } from "./sheet";
 import * as state from "./state";
-import type { State, Player, Review } from "./state";
+import type { State, Player, Review, EmojiGame } from "./state";
 import type { AnswerType, Scripture } from "./types";
 
 // A message that @mentions people: bot.ts passes `mentions` to WhatsApp so the tags ping
@@ -54,6 +54,8 @@ const LATE_SPOTS = 3;                         // how many of them
 const REVIEW_POINTS: Record<AnswerType, number> = { both: 5, reference: 3, decoded: 2 };
 const REVIEW_MIN_AGE = 14;                    // only verses at least this many puzzles old
 const REVIEW_MIN_POOL = 10;                   // don't start until there are this many to choose from
+
+const EMOJI_POINTS = 2;                       // Emoji Bible, 7-8 PM, first correct answer only
 
 function scoreAnswer(type: AnswerType, minutes: number, hintsGiven: number) {
   const base = ANSWER_POINTS[type];
@@ -107,6 +109,7 @@ const BADGES: { icon: string; name: string; earned: (p: Player) => boolean }[] =
   { icon: "🔥", name: "On Fire", earned: p => p.bestStreak >= 3 },
   { icon: "🕊️", name: "Faithful", earned: p => p.bestStreak >= 7 },
   { icon: "⛰️", name: "Unshakeable", earned: p => p.bestStreak >= 30 },
+  { icon: "😀", name: "Emoji Master", earned: p => p.emojiWins >= 10 },
 ];
 const badgesOf = (p: Player) => BADGES.filter(b => b.earned(p)).map(b => `${b.icon} ${b.name}`);
 
@@ -119,9 +122,14 @@ function recordSolve(p: Player, postedAt: number): void {
   p.lastSolvedDay = day;
 }
 
-// The streak still counts if they solved today or yesterday; otherwise it's broken
-function currentStreak(p: Player, now = Date.now()): number {
-  return p.lastSolvedDay === dayKey(now) || p.lastSolvedDay === dayKey(now - DAY) ? p.streak : 0;
+// A streak only counts once they've solved the latest puzzle. If they solved the one before
+// but not this one yet, it's "on the line": not claimed, but not lost until they miss the day.
+function streakNow(s: State, p: Player): { current: number; onTheLine: number } {
+  const latest = s.today?.postedAt;
+  if (latest === undefined || p.lastSolvedDay === null) return { current: 0, onTheLine: 0 };
+  if (p.lastSolvedDay === dayKey(latest)) return { current: p.streak, onTheLine: 0 };
+  if (p.lastSolvedDay === dayKey(latest - DAY)) return { current: 0, onTheLine: p.streak };
+  return { current: 0, onTheLine: 0 };
 }
 
 // "🔥 3-day streak!" and any badges earned since `before`
@@ -138,9 +146,9 @@ function getPlayer(s: State, id: string, name: string, now: number): Player {
   const week = weekKey(now);
   const p: Player = s.scores[id] ?? {
     name, points: 0, wins: 0, fastestMin: null, season, week, weekPoints: 0,
-    streak: 0, bestStreak: 0, lastSolvedDay: null,
+    streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0,
   };
-  if (p.season !== season) Object.assign(p, { season, points: 0, wins: 0, fastestMin: null });
+  if (p.season !== season) Object.assign(p, { season, points: 0, wins: 0, fastestMin: null, emojiWins: 0 });
   if (p.week !== week) Object.assign(p, { week, weekPoints: 0 });
   p.name = name;
   s.scores[id] = p;
@@ -194,10 +202,12 @@ export function handleMessage(senderId: string, senderName: string, text: string
     const s = state.load();
     const today = s.today && !s.revealed ? s.today : null;    // after the reveal, nothing left to win
     const review = s.review && !s.review.closed ? s.review : null;
-    if (!today && !review) return null;
+    const game = s.emojiGame && dayKey(s.emojiGame.postedAt) === dayKey(sentAt) ? s.emojiGame : null;
+    if (!today && !review && !game) return null;
 
     // The AI only looks at messages that might be a reference, so "see you at 5pm" costs nothing
-    const guess = parseReference(text) ?? (mightBeReference(text) ? await aiReadGuess(text) : null);
+    const guess = !today && !review ? null
+      : parseReference(text) ?? (mightBeReference(text) ? await aiReadGuess(text) : null);
     const matches = (v: Scripture) => ({ ref: isCorrect(guess, v), words: matchesDecode(text, v.clue) });
 
     // The morning puzzle comes first; the review only gets answers that are clearly for it
@@ -212,6 +222,12 @@ export function handleMessage(senderId: string, senderName: string, text: string
     if (lastReview && (forReview.ref || forReview.words)) {
       if (!lastReview.closed) return winReview(s, lastReview, forReview, senderId, senderName, sentAt);
       return lastReview.winner ? { kind: "react", emoji: "👏" } : null;   // after the reveal: nothing
+    }
+
+    // Emoji Bible answers are story names, so they're checked last
+    if (game && namesStory(text, game.answers)) {
+      if (!game.closed) return winEmoji(s, game, senderId, senderName, sentAt);
+      return game.winner ? { kind: "react", emoji: "👏" } : null;
     }
 
     const somethingOpen = (today && !s.winner) || review;
@@ -277,8 +293,29 @@ async function winReview(s: State, review: Review, m: Matched,
   };
 }
 
-// Correct, but someone already won. The next 3 people get +1 (and it counts for their streak);
-// after that it's just a well done, so copying the answer from the chat isn't worth much.
+// First correct answer to Emoji Bible
+async function winEmoji(s: State, game: EmojiGame, senderId: string, senderName: string,
+                        sentAt: number): Promise<Reply> {
+  const minutes = Math.max(0, (sentAt - game.postedAt) / 60_000);
+  const p = getPlayer(s, senderId, senderName, sentAt);
+  const before = badgesOf(p);
+  p.points += EMOJI_POINTS;
+  p.weekPoints += EMOJI_POINTS;
+  p.emojiWins += 1;
+  game.winner = { id: senderId, name: senderName, points: EMOJI_POINTS, minutes };
+  game.closed = true;
+  state.save(s);
+  return {
+    kind: "win",
+    text: `🎉 ${tag(senderId)} got it in ⏱️ ${formatTime(minutes)}! ${game.emoji}\n` +
+      `😀 It's *${game.story}*` + (game.reference ? ` (📖 ${game.reference})` : "") + "\n" +
+      `✨ +${EMOJI_POINTS} points ✨` + newsLines(p, before),
+    mentions: [senderId],
+  };
+}
+
+// Correct, but someone already won. The next 3 people get +1; after that it's just a well done
+// (both count for their streak), so copying the answer from the chat isn't worth much.
 function lateAnswer(s: State, senderId: string, senderName: string, sentAt: number): Reply | null {
   const winner = s.winner;
   if (!winner || !s.today || senderId === winner.id || s.lateSolvers.includes(senderId)) return null;
@@ -286,20 +323,22 @@ function lateAnswer(s: State, senderId: string, senderName: string, sentAt: numb
   const spot = s.lateSolvers.length;
   const firstBy = `${tag(winner.id)} got it first today 🏃💨`;
 
+  const p = getPlayer(s, senderId, senderName, sentAt);
+  const before = badgesOf(p);
+  recordSolve(p, s.today.postedAt);             // every correct answer keeps the streak going
+
   if (spot > LATE_SPOTS) {
     state.save(s);
     return {
       kind: "late",
-      text: `✅ Correct, ${tag(senderId)}! 👏 All ${LATE_SPOTS} bonus spots are taken today. ${firstBy}`,
+      text: `✅ Correct, ${tag(senderId)}! 👏 All ${LATE_SPOTS} bonus spots are taken today. ${firstBy}` +
+        newsLines(p, before),
       mentions: [senderId, winner.id],
     };
   }
 
-  const p = getPlayer(s, senderId, senderName, sentAt);
-  const before = badgesOf(p);
   p.points += LATE_POINTS;
   p.weekPoints += LATE_POINTS;
-  recordSolve(p, s.today.postedAt);
   state.save(s);
   return {
     kind: "late",
@@ -372,6 +411,40 @@ export async function newReview(): Promise<string | null> {
 }
 
 // 5 PM: closes the review, revealing the answer if nobody got it
+// ---------- Emoji Bible ----------
+// 7 PM: a Bible story told in emoji, from the Stories tab. Returns null if there's no Stories tab.
+export async function newEmojiGame(): Promise<string | null> {
+  const stories = await loadStories();
+  if (stories.length === 0) return null;
+  const fresh = stories.filter(st => !state.load().storiesUsed.includes(st.story));
+  const startOver = fresh.length === 0;                           // every story used: start over
+  const chosen = pick(startOver ? stories : fresh);
+  if (!chosen) return null;
+  const emoji = chosen.emoji ?? await makeEmoji(chosen.story);   // the AI call happens outside the queue
+
+  return inOrder(async () => {
+    const s = state.load();
+    s.emojiGame = { ...chosen, emoji, postedAt: Date.now(), winner: null, closed: false };
+    s.storiesUsed = [...(startOver ? [] : s.storiesUsed), chosen.story];
+    state.save(s);
+    return `😀 *Emoji Bible* 🎬\nWhich Bible story is this?\n\n${emoji}\n\n` +
+      `🎯 First to name it wins ${EMOJI_POINTS} points! Closes at 8 PM ⏳`;
+  });
+}
+
+// 8 PM: closes Emoji Bible, revealing the story if nobody got it
+export function closeEmojiGame(): Promise<string | null> {
+  return inOrder(async () => {
+    const s = state.load();
+    const g = s.emojiGame;
+    if (!g || g.closed) return null;
+    g.closed = true;
+    state.save(s);
+    return `😀 Emoji Bible closed! Nobody got it 😮\n${g.emoji} was *${g.story}*` +
+      (g.reference ? ` (📖 ${g.reference})` : "") + ". See you tomorrow at 7 PM! 🙌";
+  });
+}
+
 export function closeReview(): Promise<string | null> {
   return inOrder(async () => {
     const s = state.load();
@@ -389,9 +462,21 @@ export function closeReview(): Promise<string | null> {
 export function todayPuzzle(): Post {
   const s = state.load();
   const morning = morningStatus(s);
-  const review = reviewStatus(s);
-  if (!review) return morning;
-  return { text: `${morning.text}\n\n${review.text}`, mentions: [...morning.mentions, ...review.mentions] };
+  const extras = [reviewStatus(s), emojiStatus(s)].filter((x): x is Post => x !== null);
+  return {
+    text: [morning, ...extras].map(x => x.text).join("\n\n"),
+    mentions: [morning, ...extras].flatMap(x => x.mentions),
+  };
+}
+
+// Today's Emoji Bible, if one was posted today
+function emojiStatus(s: State): Post | null {
+  const g = s.emojiGame;
+  if (!g || dayKey(g.postedAt) !== dayKey(Date.now())) return null;
+  const head = `😀 *Emoji Bible*: ${g.emoji}`;
+  if (g.winner) return { text: `${head}\n✅ Won by ${tag(g.winner.id)}: it was *${g.story}*`, mentions: [g.winner.id] };
+  if (g.closed) return { text: `${head}\n🌙 Nobody got it. It was *${g.story}*`, mentions: [] };
+  return { text: `${head}\n⏳ Open until 8 PM: name the story for ${EMOJI_POINTS} points!`, mentions: [] };
 }
 
 // Today's Midday Review, if one was posted today
@@ -457,7 +542,8 @@ export function leaderboard(kind: "season" | "week" = "season", askerId?: string
 }
 
 export function myStats(senderId: string): Post {
-  const board = ranked(state.load(), "season");
+  const s = state.load();
+  const board = ranked(s, "season");
   const i = board.findIndex(r => r.id === senderId);
   const p = board[i];
   if (!p) {
@@ -466,20 +552,27 @@ export function myStats(senderId: string): Post {
   const badges = badgesOf(p);
   const text = `📊 ${tag(p.id)}: ⭐ ${p.points} pts, 🏅 ${p.wins} wins, 🏆 #${i + 1} this season.\n` +
     `⚡ Fastest solve: ${p.fastestMin === null ? "none yet" : formatTime(p.fastestMin)}\n` +
-    `🔥 Streak: ${currentStreak(p)} days (best ${p.bestStreak})` +
+    streakLine(streakNow(s, p), p.bestStreak) +
     (badges.length ? `\n🎖️ Badges: ${badges.join(", ")}` : "");
   return { text, mentions: [p.id] };
 }
 
+const streakLine = ({ current, onTheLine }: ReturnType<typeof streakNow>, best: number) =>
+  `🔥 Streak: ${current} days (best ${best})` +
+  (onTheLine ? `\n⏳ Your ${onTheLine}-day streak is on the line. Solve today's puzzle to keep it!` : "");
+
 export function streak(senderId: string): Post {
-  const p = state.load().scores[senderId];
+  const s = state.load();
+  const p = s.scores[senderId];
   if (!p || p.bestStreak === 0) {
     return { text: "🌱 No streak yet. Solve today's puzzle to start one! 🔥", mentions: [] };
   }
-  const now = currentStreak(p);
-  const text = now > 0
-    ? `🔥 ${tag(senderId)} is on a ${now}-day streak! (best: ${p.bestStreak}) Keep eating the Word! 📖`
-    : `💤 ${tag(senderId)}'s streak has ended (best: ${p.bestStreak}). Solve today's puzzle to start again! 💪`;
+  const { current, onTheLine } = streakNow(s, p);
+  const text = current > 0
+    ? `🔥 ${tag(senderId)} is on a ${current}-day streak! (best: ${p.bestStreak}) Keep eating the Word! 📖`
+    : onTheLine > 0
+      ? `⏳ ${tag(senderId)}, your ${onTheLine}-day streak is on the line! (best: ${p.bestStreak}) Solve today's puzzle to keep it going 🔥`
+      : `💤 ${tag(senderId)}'s streak has ended (best: ${p.bestStreak}). Solve today's puzzle to start again! 💪`;
   return { text, mentions: [senderId] };
 }
 
@@ -522,6 +615,7 @@ export function help(): string {
     "• 🌙 Once the answer is revealed, the day is closed",
     "",
     "💡 Hints come at noon and 6 PM, and the answer at 9 PM.",
+    `😀 At 7 PM it's *Emoji Bible*: name the Bible story told in emoji for ${EMOJI_POINTS} points, until 8 PM.`,
     `🔁 At 2 PM there's a *Midday Review* of a verse from a few weeks back: ${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} points, open until 5 PM.`,
     "🔥 Solve on days in a row to build a streak and earn badges 🎖️",
     "",

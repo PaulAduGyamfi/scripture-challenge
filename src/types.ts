@@ -32,3 +32,11 @@ export const BOOKS = [
   }
 
   export type AnswerType = "both" | "reference" | "decoded"
+
+  // One row of the Stories tab, for the Emoji Bible game
+  export interface Story {
+    story: string;          // "Jonah and the big fish", shown when solved
+    answers: string[];      // any one of these counts as correct: ["jonah"]
+    reference?: string;     // "Jonah 1-2"
+    emoji?: string;         // your own clue; empty means the AI makes one
+  }

@@ -60,3 +60,36 @@ describe("loadScriptures", () => {
     await expect(loadScriptures()).rejects.toThrow(/HTTP 503/);
   });
 });
+
+describe("loadStories", () => {
+  const STORIES = [
+    "Story,Answers,Reference,Emoji",
+    "Jonah and the big fish,jonah,Jonah 1-2,",
+    'David and Goliath,"goliath, david and goliath",,🧒🪨',
+    ",missing story,,",                                // skipped
+  ].join("\n");
+
+  it("reads the Stories tab and splits the answers", async () => {
+    vi.stubEnv("STORIES_CSV_URL", "https://example.test/stories.csv");
+    vi.stubGlobal("fetch", respond(STORIES));
+    const { loadStories } = await freshSheet();
+    expect(await loadStories()).toEqual([
+      { story: "Jonah and the big fish", answers: ["jonah"], reference: "Jonah 1-2", emoji: undefined },
+      { story: "David and Goliath", answers: ["goliath", "david and goliath"], reference: undefined, emoji: "🧒🪨" },
+    ]);
+    expect(console.warn).toHaveBeenCalledOnce();
+  });
+
+  it("returns nothing when there's no Stories tab", async () => {
+    vi.stubEnv("STORIES_CSV_URL", "");
+    const { loadStories } = await freshSheet();
+    expect(await loadStories()).toEqual([]);
+  });
+
+  it("explains when the link is the /edit link instead of the published CSV", async () => {
+    vi.stubEnv("STORIES_CSV_URL", "https://docs.google.com/spreadsheets/d/x/edit");
+    vi.stubGlobal("fetch", respond("<!DOCTYPE html><html>sign in</html>"));
+    const { loadStories } = await freshSheet();
+    await expect(loadStories()).rejects.toThrow(/Publish to web/);
+  });
+});

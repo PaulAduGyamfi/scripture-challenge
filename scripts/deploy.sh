@@ -11,6 +11,12 @@ echo "== Installing packages"
 npm ci --no-audit --no-fund
 echo "== Building"
 npm run build
+echo "== Checking .env"
+# New settings arrive in .env.example; .env lives only on this server, so list any it's missing
+missing=$(comm -23 <(grep -oE '^[A-Z_]+=' .env.example | sort) <(grep -oE '^[A-Z_]+=' .env | sort) | tr -d '=' | xargs)
+if [ -n "$missing" ]; then
+  echo "!! .env is missing: $missing  (see .env.example, then: pm2 restart scripture-bot)"
+fi
 echo "== Restarting the bot"
 pm2 restart scripture-bot      # the bot only loads new code when it starts
 echo "== Deployed $(git log -1 --oneline)"

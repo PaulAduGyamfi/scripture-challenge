@@ -22,8 +22,9 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | 2:00 PM | 🔁 Midday Review: a verse from 2+ weeks ago, open until 5 PM |
 | 5:00 PM | Midday Review closes (answer revealed if nobody got it) |
 | 6:00 PM | Last hint: the book of the Bible |
+| 7:00 PM | 😀 Emoji Bible: name the Bible story told in emoji, open until 8 PM |
 | 9:00 PM | If nobody got it, the answer is revealed and the day closes |
-| Sunday 8 PM | Weekly standings |
+| Sunday 8:05 PM | Weekly standings |
 | Dec 31, 8 PM | Season finale |
 
 **Points**
@@ -36,6 +37,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | Speed bonus, before any hint | +5 within 30 min, +3 within 2 hr, +1 within 4 hr |
 | One of the next 3 correct answers after the winner | +1 |
 | Midday Review (first correct only) | 5 / 3 / 2 for both / reference / decoded |
+| Emoji Bible (first correct only) | 2 |
 
 - **Forgiving answers:** the bot understands "jn 3 16", "first john 4:8", "Song of Solomon 2:1" and similar. Messier guesses like "john three sixteen" are read by AI.
 - **Typos are fine:** decoded words can have small typos, or a word missing.
@@ -55,7 +57,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | `!streak` | Your current streak |
 | `!commands` | Just the list of commands |
 
-The admin can also send `!new`, `!hint`, `!reveal`, `!review` and `!closereview` to run a step early, which is handy for testing.
+The admin can also send `!new`, `!grouphint`, `!reveal`, `!review`, `!closereview`, `!emoji` and `!closeemoji` to run a step early, which is handy for testing.
 
 **About the Midday Review:** it reuses verses the group had at least 14 puzzles ago, so it never uses up your sheet faster. It's also good for memorising Scripture. It switches on by itself once there are 10 old verses to choose from, about 3–4 weeks after you start.
 
@@ -96,6 +98,22 @@ Create a Google Sheet with these column headers in row 1, spelled exactly like t
 
 Then publish it: **File → Share → Publish to web**, choose the sheet and **Comma-separated values (.csv)**, and copy the link. You can add verses anytime, because the bot re-reads the sheet each morning. Rows with mistakes are skipped and logged, and never crash the bot.
 
+#### Optional: the Stories tab, for Emoji Bible
+
+Add a second tab called **Stories** with these headers:
+
+| Story | Answers | Reference | Emoji |
+|---|---|---|---|
+| Jonah and the big fish | jonah | Jonah 1–2 | |
+| David and Goliath | goliath, david and goliath | 1 Samuel 17 | 🧒🪨🗡️🗿 |
+
+- **Story** (required): the name, shown when someone gets it.
+- **Answers** (required): words that count as correct, separated by commas. Any one is enough, and small typos are fine.
+- **Reference**: shown with the answer.
+- **Emoji**: your own clue. Leave it empty and the AI makes one.
+
+Publish this tab on its own (**File → Share → Publish to web**, choose **Stories** and **CSV**). Each tab gets its own link, and that link goes in `STORIES_CSV_URL`. Without it, Emoji Bible simply doesn't run.
+
 ### 2. Get the code
 
 On your server:
@@ -124,6 +142,7 @@ nano .env
 |---|---|
 | `ANTHROPIC_API_KEY` | Your Claude API key |
 | `SHEET_CSV_URL` | The CSV link from step 1 |
+| `STORIES_CSV_URL` | Optional: the Stories tab's CSV link, for Emoji Bible |
 | `GROUP_ID` | Leave empty for now (step 4) |
 | `ADMIN_ID` | Leave empty for now (step 4) |
 | `TZ_NAME` | Your church's time zone, like `America/Chicago`, `Europe/London` or `Africa/Accra` ([list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)). All posting times use this zone. |

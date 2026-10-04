@@ -114,10 +114,16 @@ export function formatRef(s: Pick<Scripture, "book" | "chapter" | "verseStart" |
 const words = (s: string): string[] =>
   s.split(/\s+/).map(w => w.toLowerCase().replace(/[^a-z]/g, "")).filter(Boolean);
 
-// True if two words match, allowing one typo in words of 4+ letters
-function closeEnough(a: string, b: string): boolean {
+// True if two words match, allowing one typo in words of `minLength`+ letters:
+// a wrong, missing or extra letter, or two neighbouring letters swapped ("golaith")
+function closeEnough(a: string, b: string, minLength = 4): boolean {
   if (a === b) return true;
-  if (Math.min(a.length, b.length) < 4 || Math.abs(a.length - b.length) > 1) return false;
+  if (Math.min(a.length, b.length) < minLength || Math.abs(a.length - b.length) > 1) return false;
+  if (a.length === b.length) {
+    const diff = [...a].flatMap((c, k) => (c === b[k] ? [] : [k]));
+    const [x, y] = diff;
+    if (diff.length === 2 && x !== undefined && y === x + 1 && a[x] === b[y] && a[y] === b[x]) return true;
+  }
   let i = 0, j = 0, edits = 0;
   while (i < a.length && j < b.length) {
     if (a[i] === b[j]) { i++; j++; continue; }
@@ -149,4 +155,19 @@ export function matchesDecode(message: string, clue: string): boolean {
   }
   const matched = prev[said.length] ?? 0;
   return matched / target.length >= 0.8;
+}
+
+const SMALL_WORDS = new Set(["the", "a", "an", "and", "of", "in", "on", "to", "his", "her"]);
+
+// Emoji Bible: true if the message names the story. Every important word of one answer must
+// appear ("goliath" or "david and goliath"), with extra chatter around it. Typos are only forgiven
+// in names of 6+ letters, because short Bible names are often one letter apart (abel/babel, dagon/dragon).
+export function namesStory(message: string, answers: string[]): boolean {
+  const plain = (t: string) => words(t.replace(/['’]s\b/gi, ""));    // "noah's ark" -> noah, ark
+  const said = plain(message);
+  return answers.some(answer => {
+    const needed = plain(answer).filter(w => !SMALL_WORDS.has(w));
+    const same = (s: string, w: string) => s === `${w}s` || w === `${s}s` || closeEnough(s, w, 6);   // noahs = noah
+    return needed.length > 0 && needed.every(w => said.some(s => same(s, w)));
+  });
 }

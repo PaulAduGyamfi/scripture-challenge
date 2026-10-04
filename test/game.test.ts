@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findBook, makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode } from "../src/game";
+import { findBook, makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory } from "../src/game";
 import type { Scripture } from "../src/types";
 
 const romans: Scripture = {
@@ -120,6 +120,10 @@ describe("matchesDecode", () => {
     expect(matchesDecode("Is it: God so loved the world that He gave His only begotten Son? amen", clue)).toBe(true);
   });
 
+  it("counts two swapped letters as one typo", () => {
+    expect(matchesDecode("For God so loevd the world that He gave His only begotten Son", clue)).toBe(true);
+  });
+
   it("allows one typo in longer words", () => {
     expect(matchesDecode("For God so lovd the wrld that He gave His only begoten Son", clue)).toBe(true);
   });
@@ -132,5 +136,29 @@ describe("matchesDecode", () => {
   it("rejects empty input", () => {
     expect(matchesDecode("", clue)).toBe(false);
     expect(matchesDecode("anything", "")).toBe(false);
+  });
+});
+
+describe("namesStory", () => {
+  const goliath = ["goliath", "david and goliath"];
+
+  it.each(["Goliath", "David & Goliath!", "it's david and goliath", "golaith?", "DAVID AND THE GIANT GOLIATH"])(
+    "accepts %j", msg => expect(namesStory(msg, goliath)).toBe(true));
+
+  it.each(["david", "the giant", "", "and the"])(
+    "rejects %j", msg => expect(namesStory(msg, goliath)).toBe(false));
+
+  it("doesn't let one short name pass for another", () => {
+    expect(namesStory("tower of babel", ["cain and abel", "abel"])).toBe(false);
+    expect(namesStory("the dragon", ["dagon"])).toBe(false);
+    expect(namesStory("abel", ["abel"])).toBe(true);
+  });
+
+  it("needs every important word of a multi-word answer", () => {
+    expect(namesStory("the prodigal son", ["prodigal son"])).toBe(true);
+    expect(namesStory("the lost son", ["prodigal son"])).toBe(false);
+    expect(namesStory("noah ark", ["noah's ark"])).toBe(true);
+    expect(namesStory("noahs ark", ["noah's ark"])).toBe(true);
+    expect(namesStory("Noah’s ark", ["noahs ark"])).toBe(true);
   });
 });

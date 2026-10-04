@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { Scripture } from "../src/types";
+import type { Scripture, Story } from "../src/types";
 
 // No real AI or Google Sheet in tests
 const fakes = vi.hoisted(() => {
@@ -20,13 +20,19 @@ const fakes = vi.hoisted(() => {
     book: "Psalms", chapter: 101 + i, verseStart: 1, verseEnd: 1,
     clue: `Old verse number ${101 + i}`, text: `Old verse number ${101 + i}.`,
   }));
-  return { john, psalm, old, verses: [john] as Scripture[] };
+  const jonah: Story = { story: "Jonah and the big fish", answers: ["jonah"], reference: "Jonah 1-2" };
+  const goliath: Story = { story: "David and Goliath", answers: ["goliath", "david and goliath"], emoji: "🧒🪨🗡️🗿" };
+  return { john, psalm, old, jonah, goliath, verses: [john] as Scripture[], stories: [] as Story[] };
 });
-vi.mock("../src/sheet", () => ({ loadScriptures: vi.fn(async () => fakes.verses) }));
+vi.mock("../src/sheet", () => ({
+  loadScriptures: vi.fn(async () => fakes.verses),
+  loadStories: vi.fn(async () => fakes.stories),
+}));
 vi.mock("../src/ai", () => ({
   aiReadGuess: vi.fn(async () => null),
   makeHint: vi.fn(async () => "behest; lifelong"),
   celebrate: vi.fn(async (name: string) => `Haaaa! ${name} is sozzled!`),
+  makeEmoji: vi.fn(async () => "🐋🙏🌊"),
 }));
 
 import * as core from "../src/core";
@@ -50,6 +56,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(START);
   fakes.verses = [fakes.john];
+  fakes.stories = [];
   await core.newPuzzle();
   postedAt = START.getTime();
 });
@@ -239,7 +246,7 @@ describe("bonus spots after the winner", () => {
 
     const scores = state.load().scores;
     expect([KOFI, ESI, YAW].map(id => scores[id]?.points)).toEqual([1, 1, 1]);
-    expect(scores[AKUA]).toBeUndefined();             // no points, and no streak
+    expect(scores[AKUA]).toMatchObject({ points: 0, streak: 1 });   // no points, but it counts for the streak
   });
 
   it("answers each late person only once", async () => {
@@ -353,13 +360,40 @@ describe("streaks and badges", () => {
     expect(textOf(reply)).toContain("⚡ Quick Draw");
   });
 
+  it("counts answers after the bonus spots are taken", async () => {
+    await solveOnDay(0);
+    vi.setSystemTime(START.getTime() + 24 * 60 * MIN);
+    await core.newPuzzle();
+    for (const [id, name] of [[KOFI, "Kofi"], [ESI, "Esi"], [YAW, "Yaw"], [AKUA, "Akua"]] as const) {
+      await core.handleMessage(id, name, "John 3:16", Date.now() + MIN);
+    }
+    const reply = await core.handleMessage(AMA, "Ama", "John 3:16", Date.now() + 2 * MIN);
+    expect(textOf(reply)).toContain("All 3 bonus spots are taken today");
+    expect(textOf(reply)).toContain("🔥 2-day streak!");
+    expect(state.load().scores[AMA]).toMatchObject({ streak: 2, bestStreak: 2 });
+  });
+
   it("shows the streak with !streak, and when it has ended", async () => {
     expect(core.streak(AMA).text).toContain("No streak yet");
     await solveOnDay(0);
     await solveOnDay(1);
     expect(core.streak(AMA)).toEqual({ text: expect.stringContaining("@111 is on a 2-day streak! (best: 2)"), mentions: [AMA] });
     vi.setSystemTime(START.getTime() + 3 * 24 * 60 * MIN);
+    await core.newPuzzle();
     expect(core.streak(AMA).text).toContain("streak has ended (best: 2)");
+  });
+
+  it("doesn't claim a streak until today's puzzle is solved", async () => {
+    await solveOnDay(0);
+    await solveOnDay(1);
+    vi.setSystemTime(START.getTime() + 2 * 24 * 60 * MIN);
+    await core.newPuzzle();                            // day 3's puzzle, not answered yet
+    expect(core.streak(AMA).text).toContain("@111, your 2-day streak is on the line!");
+    expect(core.streak(AMA).text).not.toContain("is on a");
+    expect(core.myStats(AMA).text).toContain("Streak: 0 days (best 2)");
+    expect(core.myStats(AMA).text).toContain("Your 2-day streak is on the line");
+    await core.handleMessage(AMA, "Ama", "John 3:16", Date.now() + MIN);
+    expect(core.streak(AMA).text).toContain("is on a 3-day streak!");
   });
 });
 
@@ -408,7 +442,7 @@ describe("big leaderboards", () => {
     for (let n = 1; n <= 20; n++) {
       s.scores[`${n}@c.us`] = {
         name: `P${n}`, points: 210 - n * 10, wins: 1, fastestMin: 5, season: 2026, week,
-        weekPoints: 210 - n * 10, streak: 0, bestStreak: 0, lastSolvedDay: null,
+        weekPoints: 210 - n * 10, streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0,
       };
     }
     state.save(s);
@@ -590,5 +624,94 @@ describe("Midday Review", () => {
     await core.newReview();
     await core.newPuzzle();
     expect(state.load().review?.closed).toBe(true);
+  });
+});
+
+describe("Emoji Bible", () => {
+  const SEVEN_PM = START.getTime() + 12 * 60 * MIN;
+  async function postGame(stories: Story[] = [fakes.jonah]) {
+    fakes.stories = stories;
+    vi.setSystemTime(SEVEN_PM);
+    return core.newEmojiGame();
+  }
+
+  it("does nothing without a Stories tab", async () => {
+    expect(await postGame([])).toBeNull();
+    expect(state.load().emojiGame).toBeNull();
+  });
+
+  it("posts the AI's emoji when the sheet has none", async () => {
+    const text = await postGame([fakes.jonah]);
+    expect(text).toContain("😀 *Emoji Bible*");
+    expect(text).toContain("🐋🙏🌊");
+    expect(text).toContain("Closes at 8 PM");
+    expect(text).not.toContain("Jonah");                 // never gives the answer away
+    expect(ai.makeEmoji).toHaveBeenCalledWith("Jonah and the big fish");
+  });
+
+  it("uses your own emoji from the sheet without asking the AI", async () => {
+    expect(await postGame([fakes.goliath])).toContain("🧒🪨🗡️🗿");
+    expect(ai.makeEmoji).not.toHaveBeenCalled();
+  });
+
+  it("gives the first person to name the story 2 points", async () => {
+    await postGame();
+    const reply = await core.handleMessage(AMA, "Ama", "is it jonah??", SEVEN_PM + 3 * MIN);
+    expect(reply).toMatchObject({ kind: "win", mentions: [AMA] });
+    expect(textOf(reply)).toContain("@111 got it in ⏱️ 3 min!");
+    expect(textOf(reply)).toContain("It's *Jonah and the big fish* (📖 Jonah 1-2)");
+    expect(state.load().scores[AMA]).toMatchObject({ points: 2, emojiWins: 1, wins: 0 });
+  });
+
+  it("accepts any listed answer, with a typo", async () => {
+    await postGame([fakes.goliath]);
+    expect((await core.handleMessage(AMA, "Ama", "Golaith!", SEVEN_PM + MIN))?.kind).toBe("win");
+  });
+
+  it("claps for late right answers and ignores wrong ones", async () => {
+    await postGame();
+    await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN);
+    expect(await core.handleMessage(KOFI, "Kofi", "Jonah", SEVEN_PM + 2 * MIN)).toEqual({ kind: "react", emoji: "👏" });
+    expect(await core.handleMessage(ESI, "Esi", "moses?", SEVEN_PM + 2 * MIN)).toBeNull();
+    expect(state.load().scores[KOFI]).toBeUndefined();
+  });
+
+  it("still sends morning answers to the morning puzzle", async () => {
+    await postGame();
+    expect(textOf(await core.handleMessage(AMA, "Ama", "John 3:16", SEVEN_PM))).toContain("got it first");
+    expect(state.load().emojiGame?.closed).toBe(false);
+  });
+
+  it("reveals the story at 8 PM if nobody got it, then ignores answers", async () => {
+    await postGame();
+    expect(await core.closeEmojiGame()).toContain("🐋🙏🌊 was *Jonah and the big fish* (📖 Jonah 1-2)");
+    expect(await core.closeEmojiGame()).toBeNull();
+    expect(await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + 70 * MIN)).toBeNull();
+  });
+
+  it("doesn't repeat a story until every story has been used", async () => {
+    const titles = new Set<string>();
+    for (let i = 0; i < 2; i++) { await postGame([fakes.jonah, fakes.goliath]); titles.add(state.load().emojiGame?.story ?? ""); }
+    expect(titles.size).toBe(2);
+    await postGame([fakes.jonah, fakes.goliath]);       // both used: starts over
+    expect(state.load().storiesUsed).toHaveLength(1);
+  });
+
+  it("shows in !today", async () => {
+    await postGame();
+    expect(core.todayPuzzle().text).toContain("😀 *Emoji Bible*: 🐋🙏🌊\n⏳ Open until 8 PM");
+    await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN);
+    expect(core.todayPuzzle().text).toContain("✅ Won by @111: it was *Jonah and the big fish*");
+  });
+
+  it("awards Emoji Master after 10 wins", async () => {
+    const s = state.load();
+    s.scores[AMA] = {
+      name: "Ama", points: 18, wins: 0, fastestMin: null, season: 2026, week: "x", weekPoints: 0,
+      streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 9,
+    };
+    state.save(s);
+    await postGame();
+    expect(textOf(await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN))).toContain("🎖️ New badge: 😀 Emoji Master!");
   });
 });

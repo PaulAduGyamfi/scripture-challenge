@@ -12,7 +12,7 @@ const TZ = optionalEnv("TZ_NAME") ?? "America/New_York";
 try { new Intl.DateTimeFormat("en-US", { timeZone: TZ }); }
 catch { throw new Error(`TZ_NAME "${TZ}" isn't a real time zone (try America/Chicago)`); }
 // Run the whole bot on church time, so the week and season reset at the same midnight the
-// cron jobs use. Otherwise a UTC server would reset before the Sunday 8 PM wrap-up.
+// cron jobs use. Otherwise a UTC server would reset before the Sunday 8:05 PM wrap-up.
 process.env.TZ = TZ;
 
 // Log unexpected errors instead of dying silently; pm2 keeps the logs
@@ -97,10 +97,12 @@ async function onMessage(msg: Message): Promise<void> {
 
   if (ADMIN_ID && senderId === ADMIN_ID) {          // test commands, only for you
     if (body === "!new") return post(await core.newPuzzle());
-    if (body === "!hint") return post(await core.hint());
+    if (body === "!grouphint") return post(await core.hint());
     if (body === "!reveal") return post(await core.reveal());
     if (body === "!review") return post(await core.newReview());
     if (body === "!closereview") return post(await core.closeReview());
+    if (body === "!emoji") return post(await core.newEmojiGame());
+    if (body === "!closeemoji") return post(await core.closeEmojiGame());
   }
 
   const contact = await msg.getContact();
@@ -134,8 +136,10 @@ at("0 12 * * *", async () => post(await core.hint()));        // noon hint
 at("0 14 * * *", async () => post(await core.newReview()));   // 2 PM Midday Review
 at("0 17 * * *", async () => post(await core.closeReview())); // 5 PM review closes
 at("0 18 * * *", async () => post(await core.hint()));        // 6 PM book hint
+at("0 19 * * *", async () => post(await core.newEmojiGame())); // 7 PM Emoji Bible
+at("0 20 * * *", async () => post(await core.closeEmojiGame())); // 8 PM Emoji Bible closes
 at("0 21 * * *", async () => post(await core.reveal()));      // 9 PM reveal
-at("0 20 * * 0", async () =>                                   // Sunday 8 PM weekly wrap-up
+at("5 20 * * 0", async () =>                                   // Sunday 8:05 PM weekly wrap-up (after Emoji Bible closes)
   post(withIntro("That's a wrap on the week! Final standings:\n\n", core.leaderboard("week"))));
 at("0 20 31 12 *", async () =>                                 // Dec 31 season finale
   post(withIntro("Season's over! Congratulations to this year's top solvers:\n\n", core.leaderboard("season"))));

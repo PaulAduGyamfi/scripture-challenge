@@ -71,3 +71,16 @@ export async function celebrate(name: string, ref: string): Promise<string> {
     `${name} just solved ${ref}.`
   );
 }
+
+// Emoji Bible: turns a story into a row of emoji. Only emoji come back, so it can't spell the answer.
+export async function makeEmoji(story: string): Promise<string> {
+  const out = await askClaude(
+    "You make clues for 'Emoji Bible', a church WhatsApp guessing game. Turn the Bible story into 3 to 6 " +
+    "emoji that tell it in order, so a churchgoer could guess it. Use only emoji: no letters, numbers, " +
+    "words, flags or spaces. Keep it reverent. Reply with only the emoji.",
+    story
+  );
+  const emoji = out.replace(/\s+/g, "");
+  if (!emoji || /[A-Za-z0-9]/.test(emoji)) throw new Error(`AI emoji clue wasn't just emoji: ${out}`);
+  return emoji;
+}

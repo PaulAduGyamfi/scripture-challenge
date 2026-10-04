@@ -9,7 +9,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
   default: class { messages = { create }; },
 }));
 
-import { aiReadGuess, makeHint, celebrate } from "../src/ai";
+import { aiReadGuess, makeHint, celebrate, makeEmoji } from "../src/ai";
 
 const claudeSays = (text: string) =>
   create.mockResolvedValueOnce({ content: [{ type: "text", text }] });
@@ -68,5 +68,17 @@ describe("celebrate", () => {
     claudeSays("Haaaa! Ama has been eating the Word! 📖");
     expect(await celebrate("Ama", "John 3:16")).toBe("Haaaa! Ama has been eating the Word! 📖");
     expect(create.mock.calls[0]?.[0].messages[0].content).toBe("Ama just solved John 3:16.");
+  });
+});
+
+describe("makeEmoji", () => {
+  it("returns just the emoji", async () => {
+    claudeSays(" 🐋 🙏 🌊 \n");
+    expect(await makeEmoji("Jonah and the big fish")).toBe("🐋🙏🌊");
+  });
+
+  it.each(["🐋 Jonah 🌊", "🐋1️⃣", ""])("refuses a clue with letters or numbers in it: %j", async reply => {
+    claudeSays(reply);
+    await expect(makeEmoji("Jonah and the big fish")).rejects.toThrow();
   });
 });

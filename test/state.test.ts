@@ -13,7 +13,7 @@ describe("state", () => {
   it("starts empty when there is no state.json", () => {
     expect(state.load()).toEqual({
       today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], used: [],
-      history: [], review: null, reviewed: [], scores: {},
+      history: [], review: null, reviewed: [], emojiGame: null, storiesUsed: [], scores: {},
     });
   });
 
@@ -22,7 +22,7 @@ describe("state", () => {
     s.used.push("John 3:16");
     s.scores["111@c.us"] = {
       name: "Ama", points: 11, wins: 1, fastestMin: 2, season: 2026, week: "2026-03-02", weekPoints: 11,
-      streak: 2, bestStreak: 4, lastSolvedDay: "2026-03-04",
+      streak: 2, bestStreak: 4, lastSolvedDay: "2026-03-04", emojiWins: 0,
     };
     state.save(s);
     expect(state.load()).toEqual(s);
