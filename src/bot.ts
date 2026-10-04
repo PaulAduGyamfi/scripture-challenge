@@ -91,6 +91,7 @@ async function onMessage(msg: Message): Promise<void> {
   if (command === "!week") return replyLikeAPerson(msg, core.leaderboard("week", senderId));
   if (command === "!me") return replyLikeAPerson(msg, core.myStats(senderId));
   if (command === "!streak") return replyLikeAPerson(msg, core.streak(senderId));
+  if (command === "!schedule") return replyLikeAPerson(msg, core.schedule());
   if (command === "!today" || command === "!puzzle") return replyLikeAPerson(msg, core.todayPuzzle());
   if (command === "!commands") return replyLikeAPerson(msg, core.commands());
   if (command === "!help") return replyLikeAPerson(msg, core.help());
@@ -130,18 +131,19 @@ client.on("message", msg => {
 const at = (time: string, job: () => Promise<void>) =>
   cron.schedule(time, () => { job().catch(err => console.error(`Job ${time} failed:`, err)); }, { timezone: TZ });
 
-at("55 6 * * *", async () => { core.backupState(); });       // 6:55 AM backup of state.json
-at("0 7 * * *",  async () => post(await core.newPuzzle()));   // 7:00 AM puzzle
-at("0 12 * * *", async () => post(await core.hint()));        // noon hint
-at("0 14 * * *", async () => post(await core.newReview()));   // 2 PM Midday Review
-at("0 17 * * *", async () => post(await core.closeReview())); // 5 PM review closes
-at("0 18 * * *", async () => post(await core.hint()));        // 6 PM book hint
-at("0 19 * * *", async () => post(await core.newEmojiGame())); // 7 PM Emoji Bible
-at("0 20 * * *", async () => post(await core.closeEmojiGame())); // 8 PM Emoji Bible closes
-at("0 21 * * *", async () => post(await core.reveal()));      // 9 PM reveal
-at("5 20 * * 0", async () =>                                   // Sunday 8:05 PM weekly wrap-up (after Emoji Bible closes)
+const { SCHEDULE: S } = core;
+at(S.backup,      async () => { core.backupState(); });
+at(S.puzzle,      async () => post(await core.newPuzzle()));
+at(S.hint,        async () => post(await core.hint()));            // AI hint
+at(S.review,      async () => post(await core.newReview()));       // Midday Review
+at(S.closeReview, async () => post(await core.closeReview()));
+at(S.bookHint,    async () => post(await core.hint()));            // the book
+at(S.emoji,       async () => post(await core.newEmojiGame()));    // Emoji Bible
+at(S.closeEmoji,  async () => post(await core.closeEmojiGame()));
+at(S.reveal,      async () => post(await core.reveal()));
+at(S.weeklyWrap,  async () =>                                      // after Emoji Bible closes
   post(withIntro("That's a wrap on the week! Final standings:\n\n", core.leaderboard("week"))));
-at("0 20 31 12 *", async () =>                                 // Dec 31 season finale
+at(S.seasonFinale, async () =>                                 // Dec 31 season finale
   post(withIntro("Season's over! Congratulations to this year's top solvers:\n\n", core.leaderboard("season"))));
 
 client.initialize().catch(err => {

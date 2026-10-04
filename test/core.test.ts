@@ -414,7 +414,7 @@ describe("replyTo", () => {
 });
 
 describe("help and commands", () => {
-  const PLAYER_COMMANDS = ["!today", "!leaderboard", "!week", "!me", "!streak", "!commands", "!help"];
+  const PLAYER_COMMANDS = ["!today", "!schedule", "!leaderboard", "!week", "!me", "!streak", "!commands", "!help"];
 
   it("!help lists the points and every command", () => {
     const text = core.help();
@@ -713,5 +713,40 @@ describe("Emoji Bible", () => {
     state.save(s);
     await postGame();
     expect(textOf(await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN))).toContain("🎖️ New badge: 😀 Emoji Master!");
+  });
+});
+
+describe("!schedule", () => {
+  it.each([["0 7 * * *", "7 AM"], ["0 12 * * *", "12 PM"], ["0 14 * * *", "2 PM"], ["5 20 * * 0", "8:05 PM"], ["55 6 * * *", "6:55 AM"], ["0 0 * * *", "12 AM"]])(
+    "reads %j as %s", (cron, time) => expect(core.timeOf(cron)).toBe(time));
+
+  it("lists the day in order, with the closing times", () => {
+    const text = core.schedule();
+    const order = ["Morning puzzle", "Extra hint", "Midday Review, until 5 PM", "Last hint", "The answer", "Weekly standings"];
+    const positions = order.map(o => text.indexOf(o));
+    expect(positions.every(p => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(text).toContain("☀️ 7 AM: Morning puzzle");
+    expect(text).toContain("📅 Sundays 8:05 PM");
+  });
+
+  it("marks the Midday Review as coming soon until there are enough old verses", () => {
+    expect(core.schedule()).toContain("_(starting soon)_");
+    const s = state.load();
+    s.history = Array.from({ length: 30 }, (_, i) => `Psalms ${i + 1}:1`);
+    state.save(s);
+    expect(core.schedule()).not.toContain("starting soon");
+  });
+
+  it("only lists Emoji Bible when there's a Stories tab", () => {
+    vi.stubEnv("STORIES_CSV_URL", "");
+    expect(core.schedule()).not.toContain("Emoji Bible");
+    vi.stubEnv("STORIES_CSV_URL", "https://example.test/stories.csv");
+    expect(core.schedule()).toContain("😀 7 PM: Emoji Bible, until 8 PM");
+    vi.unstubAllEnvs();
+  });
+
+  it("uses the same times in !help", () => {
+    expect(core.help()).toContain("Hints come at 12 PM and 6 PM, and the answer at 9 PM");
   });
 });

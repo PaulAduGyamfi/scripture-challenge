@@ -1,6 +1,7 @@
 import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory } from "./game";
 import { aiReadGuess, makeHint, celebrate, makeEmoji } from "./ai";
 import { loadScriptures, loadStories } from "./sheet";
+import { optionalEnv } from "./config";
 import * as state from "./state";
 import type { State, Player, Review, EmojiGame } from "./state";
 import type { AnswerType, Scripture } from "./types";
@@ -29,7 +30,7 @@ export function replyTo(senderId: string, out: string | Post): Post {
 
 // Everything that changes state.json waits its turn here, one at a time, in order.
 // Without this, a slow AI check could let a later answer "win", or an answer that was
-// waiting on the AI could save over the noon hint or the new puzzle with an old copy.
+// waiting on the AI could save over the 12 PM hint or the new puzzle with an old copy.
 let queue: Promise<unknown> = Promise.resolve();
 function inOrder<T>(fn: () => Promise<T>): Promise<T> {
   const p = queue.then(fn);
@@ -55,7 +56,32 @@ const REVIEW_POINTS: Record<AnswerType, number> = { both: 5, reference: 3, decod
 const REVIEW_MIN_AGE = 14;                    // only verses at least this many puzzles old
 const REVIEW_MIN_POOL = 10;                   // don't start until there are this many to choose from
 
-const EMOJI_POINTS = 2;                       // Emoji Bible, 7-8 PM, first correct answer only
+const EMOJI_POINTS = 2;                       // Emoji Bible, first correct answer only
+
+// ---------- Schedule ----------
+// Every scheduled post, in one place (cron format: minute hour day month weekday).
+// bot.ts runs these; !schedule, !help and the bot's messages read their times from here.
+export const SCHEDULE = {
+  backup:       "55 6 * * *",
+  puzzle:       "0 7 * * *",
+  hint:         "0 12 * * *",
+  review:       "0 14 * * *",
+  closeReview:  "0 17 * * *",
+  bookHint:     "0 18 * * *",
+  emoji:        "0 19 * * *",
+  closeEmoji:   "0 20 * * *",
+  reveal:       "0 21 * * *",
+  weeklyWrap:   "5 20 * * 0",
+  seasonFinale: "0 20 31 12 *",
+} as const;
+
+// "0 14 * * *" -> "2 PM", "5 20 * * 0" -> "8:05 PM"
+export function timeOf(cron: string): string {
+  const [min = 0, hour = 0] = cron.split(" ").map(Number);
+  const minutes = min ? `:${String(min).padStart(2, "0")}` : "";
+  return `${hour % 12 || 12}${minutes} ${hour < 12 ? "AM" : "PM"}`;
+}
+const when = (job: keyof typeof SCHEDULE) => timeOf(SCHEDULE[job]);
 
 function scoreAnswer(type: AnswerType, minutes: number, hintsGiven: number) {
   const base = ANSWER_POINTS[type];
@@ -187,7 +213,7 @@ function pickPuzzle(all: Scripture[]): string {
   s.used.push(formatRef(chosen));
   if (s.history.length === 0) s.history = s.used.slice(0, -1);   // first run: start from what's been used
   s.history.push(formatRef(chosen));
-  if (s.review) s.review.closed = true;                          // in case 5 PM was missed
+  if (s.review) s.review.closed = true;                          // in case its closing time was missed
   state.save(s);
 
   const hintLine = chosen.hint ? `\n\n💡 Hint: ${chosen.hint}` : "";
@@ -382,13 +408,15 @@ export function reveal(): Promise<string | null> {
 }
 
 // ---------- Midday Review ----------
+// Morning verses old enough to come back as a review
+const oldVerses = (s: State) => [...new Set(s.history.slice(0, -REVIEW_MIN_AGE))];
 // Posts a verse from an earlier morning (2+ weeks ago), so the sheet is never used up faster.
 // Returns null until enough old verses exist.
 export async function newReview(): Promise<string | null> {
   const all = await loadScriptures();
   return inOrder(async () => {
     const s = state.load();
-    const old = [...new Set(s.history.slice(0, -REVIEW_MIN_AGE))];
+    const old = oldVerses(s);
     const byRef = new Map(all.map(v => [formatRef(v), v]));
     const eligible = old.filter(ref => byRef.has(ref) && ref !== (s.today && formatRef(s.today)));
     if (eligible.length < REVIEW_MIN_POOL) return null;
@@ -405,14 +433,14 @@ export async function newReview(): Promise<string | null> {
 
     const morningOpen = s.today && !s.winner && !s.revealed;
     return `🔁 *Midday Review* 🧠\nA verse we've had before. Do you remember it?\n\n📜 *${puzzleOf(chosen)}*\n\n` +
-      `🎯 First correct answer wins ${REVIEW_POINTS.both} points! Closes at 5 PM ⏳` +
+      `🎯 First correct answer wins ${REVIEW_POINTS.both} points! Closes at ${when("closeReview")} ⏳` +
       (morningOpen ? "\n☀️ This morning's puzzle is still open too. Send !today to see it" : "");
   });
 }
 
-// 5 PM: closes the review, revealing the answer if nobody got it
+// closeReview time: closes the review, revealing the answer if nobody got it
 // ---------- Emoji Bible ----------
-// 7 PM: a Bible story told in emoji, from the Stories tab. Returns null if there's no Stories tab.
+// emoji time: a Bible story told in emoji, from the Stories tab. Returns null if there's no Stories tab.
 export async function newEmojiGame(): Promise<string | null> {
   const stories = await loadStories();
   if (stories.length === 0) return null;
@@ -428,11 +456,11 @@ export async function newEmojiGame(): Promise<string | null> {
     s.storiesUsed = [...(startOver ? [] : s.storiesUsed), chosen.story];
     state.save(s);
     return `😀 *Emoji Bible* 🎬\nWhich Bible story is this?\n\n${emoji}\n\n` +
-      `🎯 First to name it wins ${EMOJI_POINTS} points! Closes at 8 PM ⏳`;
+      `🎯 First to name it wins ${EMOJI_POINTS} points! Closes at ${when("closeEmoji")} ⏳`;
   });
 }
 
-// 8 PM: closes Emoji Bible, revealing the story if nobody got it
+// closeEmoji time: closes Emoji Bible, revealing the story if nobody got it
 export function closeEmojiGame(): Promise<string | null> {
   return inOrder(async () => {
     const s = state.load();
@@ -441,7 +469,7 @@ export function closeEmojiGame(): Promise<string | null> {
     g.closed = true;
     state.save(s);
     return `😀 Emoji Bible closed! Nobody got it 😮\n${g.emoji} was *${g.story}*` +
-      (g.reference ? ` (📖 ${g.reference})` : "") + ". See you tomorrow at 7 PM! 🙌";
+      (g.reference ? ` (📖 ${g.reference})` : "") + `. See you tomorrow at ${when("emoji")}! 🙌`;
   });
 }
 
@@ -454,7 +482,7 @@ export function closeReview(): Promise<string | null> {
     state.save(s);
     const morningOpen = s.today && !s.winner && !s.revealed;
     return `🔁 Midday Review closed! Nobody got it 😮 It was 📖 ${fullRef(r.verse)}:\n\n"${r.verse.text}"` +
-      (morningOpen ? "\n\n☀️ This morning's puzzle is still open until 9 PM. Send !today to see it 💪" : "");
+      (morningOpen ? `\n\n☀️ This morning's puzzle is still open until ${when("reveal")}. Send !today to see it 💪` : "");
   });
 }
 
@@ -476,7 +504,7 @@ function emojiStatus(s: State): Post | null {
   const head = `😀 *Emoji Bible*: ${g.emoji}`;
   if (g.winner) return { text: `${head}\n✅ Won by ${tag(g.winner.id)}: it was *${g.story}*`, mentions: [g.winner.id] };
   if (g.closed) return { text: `${head}\n🌙 Nobody got it. It was *${g.story}*`, mentions: [] };
-  return { text: `${head}\n⏳ Open until 8 PM: name the story for ${EMOJI_POINTS} points!`, mentions: [] };
+  return { text: `${head}\n⏳ Open until ${when("closeEmoji")}: name the story for ${EMOJI_POINTS} points!`, mentions: [] };
 }
 
 // Today's Midday Review, if one was posted today
@@ -488,12 +516,12 @@ function reviewStatus(s: State): Post | null {
     return { text: `${head}\n✅ Won by ${tag(r.winner.id)} in ⏱️ ${formatTime(r.winner.minutes)}!`, mentions: [r.winner.id] };
   }
   if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was 📖 ${fullRef(r.verse)}`, mentions: [] };
-  return { text: `${head}\n⏳ Open until 5 PM: first correct answer wins ${REVIEW_POINTS.both} points!`, mentions: [] };
+  return { text: `${head}\n⏳ Open until ${when("closeReview")}: first correct answer wins ${REVIEW_POINTS.both} points!`, mentions: [] };
 }
 
 function morningStatus(s: State): Post {
   const v = s.today;
-  if (!v) return { text: "😴 No puzzle yet. The next one comes out at 7 AM ☀️", mentions: [] };
+  if (!v) return { text: `😴 No puzzle yet. The next one comes out at ${when("puzzle")} ☀️`, mentions: [] };
 
   const lines = [`📜 Today's scripture: *${puzzleOf(v)}*`];
   if (v.hint) lines.push(`💡 Hint: ${v.hint}`);
@@ -501,7 +529,7 @@ function morningStatus(s: State): Post {
   lines.push("");
 
   if (s.revealed) {
-    lines.push(`🌙 Nobody got it. It was 📖 ${fullRef(v)}. A new one comes at 7 AM ☀️`);
+    lines.push(`🌙 Nobody got it. It was 📖 ${fullRef(v)}. A new one comes at ${when("puzzle")} ☀️`);
     return { text: lines.join("\n"), mentions: [] };
   }
   if (!s.winner) {
@@ -582,9 +610,30 @@ export function backupState(): void {
   if (file) console.log(`Backed up scores to ${file}`);
 }
 
+// !schedule: the whole day at a glance
+export function schedule(): string {
+  const reviewSoon = oldVerses(state.load()).length < REVIEW_MIN_POOL;
+  const zone = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+    .formatToParts(new Date()).find(p => p.type === "timeZoneName")?.value;
+  return [
+    "🗓️ *Daily schedule*" + (zone ? ` (${zone})` : ""),
+    "",
+    `☀️ ${when("puzzle")}: Morning puzzle`,
+    `💡 ${when("hint")}: Extra hint (the speed bonus ends)`,
+    `🔁 ${when("review")}: Midday Review, until ${when("closeReview")}` + (reviewSoon ? " _(starting soon)_" : ""),
+    `🔦 ${when("bookHint")}: Last hint: the book`,
+    ...(optionalEnv("STORIES_CSV_URL") ? [`😀 ${when("emoji")}: Emoji Bible, until ${when("closeEmoji")}`] : []),
+    `🌙 ${when("reveal")}: The answer, if nobody got it`,
+    "",
+    `📅 Sundays ${when("weeklyWrap")}: Weekly standings`,
+    `🏆 Dec 31, ${when("seasonFinale")}: Season finale`,
+  ].join("\n");
+}
+
 // Shared by !help and !commands, so the two lists never drift apart
 const COMMANDS = [
   "• !today: today's puzzles, hints, and who solved them 📜",
+  "• !schedule: what happens at what time 🗓️",
   "• !leaderboard: season standings 🏆",
   "• !week: this week's standings 📅",
   "• !me: your points, streak and badges 📊",
@@ -614,9 +663,10 @@ export function help(): string {
     `• ✅ Next ${LATE_SPOTS} correct answers after the winner: +${LATE_POINTS} each`,
     "• 🌙 Once the answer is revealed, the day is closed",
     "",
-    "💡 Hints come at noon and 6 PM, and the answer at 9 PM.",
-    `😀 At 7 PM it's *Emoji Bible*: name the Bible story told in emoji for ${EMOJI_POINTS} points, until 8 PM.`,
-    `🔁 At 2 PM there's a *Midday Review* of a verse from a few weeks back: ${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} points, open until 5 PM.`,
+    `💡 Hints come at ${when("hint")} and ${when("bookHint")}, and the answer at ${when("reveal")}.`,
+    `😀 At ${when("emoji")} it's *Emoji Bible*: name the Bible story told in emoji for ${EMOJI_POINTS} points, until ${when("closeEmoji")}.`,
+    `🔁 At ${when("review")} there's a *Midday Review* of a verse from a few weeks back: ${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} points, open until ${when("closeReview")}.`,
+    "🗓️ Send !schedule to see the whole day.",
     "🔥 Solve on days in a row to build a streak and earn badges 🎖️",
     "",
     "🤖 *Commands*",

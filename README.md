@@ -50,6 +50,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | Command | Shows |
 |---|---|
 | `!today` | Today's puzzle, the hints so far, and who solved it |
+| `!schedule` | What happens at what time |
 | `!help` | Rules and commands |
 | `!leaderboard` | Season standings |
 | `!week` | This week's standings |
@@ -229,7 +230,7 @@ These backups live on the same server. For extra safety, copy the `backups/` fol
 
 | To change | Edit |
 |---|---|
-| Posting times | The `at("...")` lines at the bottom of `src/bot.ts` (cron format). If you move hint times, update the wording in `help()` in `src/core.ts` too. |
+| Posting times | `SCHEDULE` near the top of `src/core.ts` (cron format: `minute hour * * *`). The timers, `!schedule`, `!help` and every message follow it. |
 | Points, speed bonus, badges | Top of `src/core.ts` |
 | Messages and emoji | `src/core.ts` |
 | The winner's cheer | The `celebrate` prompt in `src/ai.ts`. Teach it your church's own sayings. |
