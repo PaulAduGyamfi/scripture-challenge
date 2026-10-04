@@ -33,6 +33,7 @@ vi.mock("../src/ai", () => ({
   makeHint: vi.fn(async () => "behest; lifelong"),
   celebrate: vi.fn(async (name: string) => `Haaaa! ${name} is sozzled!`),
   makeEmoji: vi.fn(async () => "🐋🙏🌊"),
+  judgeStoryGuess: vi.fn(async () => "not_a_guess"),
 }));
 
 import * as core from "../src/core";
@@ -228,6 +229,43 @@ describe("taking turns", () => {
     await answer;
     await puzzle;
     expect(state.load()).toMatchObject({ today: { book: "Psalms" }, winner: null });
+  });
+});
+
+describe("on the right track", () => {
+  it("gives +1 for the start of the verse and keeps the puzzle open", async () => {
+    const reply = await core.handleMessage(AMA, "Ama", "For God so loved the world that", postedAt + MIN);
+    expect(reply).toEqual({
+      kind: "onTrack",
+      text: expect.stringContaining("👍 @111, you're on the right track! +1 point"),
+      mentions: [AMA],
+    });
+    expect(state.load()).toMatchObject({ winner: null, onTrack: [AMA] });
+    expect(state.load().scores[AMA]).toMatchObject({ points: 1, wins: 0, streak: 0 });
+  });
+
+  it("gives +1 for a 5-word quote from the verse", async () => {
+    const reply = await core.handleMessage(KOFI, "Kofi", "he gave his only begotten", postedAt + MIN);
+    expect(reply?.kind).toBe("onTrack");
+  });
+
+  it("gives it once per person, and they can still win in full", async () => {
+    await core.handleMessage(AMA, "Ama", "For God so loved the world", postedAt + MIN);
+    expect(await core.handleMessage(AMA, "Ama", "For God so loved the world that", postedAt + 2 * MIN)).toBeNull();
+    expect((await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + 3 * MIN))?.kind).toBe("win");
+    expect(state.load().scores[AMA]?.points).toBe(1 + 6 + 5);
+  });
+
+  it("gives nothing once someone has won", async () => {
+    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);
+    expect(await core.handleMessage(KOFI, "Kofi", "For God so loved the world", postedAt + 2 * MIN)).toBeNull();
+    expect(state.load().scores[KOFI]).toBeUndefined();
+  });
+
+  it("is reset by the next puzzle", async () => {
+    await core.handleMessage(AMA, "Ama", "For God so loved the world", postedAt + MIN);
+    await core.newPuzzle();
+    expect(state.load().onTrack).toEqual([]);
   });
 });
 
@@ -695,6 +733,37 @@ describe("Emoji Bible", () => {
     expect(titles.size).toBe(2);
     await postGame([fakes.jonah, fakes.goliath]);       // both used: starts over
     expect(state.load().storiesUsed).toHaveLength(1);
+  });
+
+  it("lets the AI accept the right idea in other words", async () => {
+    await postGame();
+    vi.mocked(ai.judgeStoryGuess).mockResolvedValueOnce("correct");
+    const reply = await core.handleMessage(AMA, "Ama", "the man swallowed by a whale!", SEVEN_PM + MIN);
+    expect(reply?.kind).toBe("win");
+    expect(ai.judgeStoryGuess).toHaveBeenCalledWith("the man swallowed by a whale!", expect.objectContaining({ story: "Jonah and the big fish" }));
+    expect(state.load().scores[AMA]?.points).toBe(2);
+  });
+
+  it("reacts 🤔 when the AI says it's a guess at a different story, and ignores chatter", async () => {
+    await postGame();
+    vi.mocked(ai.judgeStoryGuess).mockResolvedValueOnce("wrong");
+    expect(await core.handleMessage(KOFI, "Kofi", "noah and the flood", SEVEN_PM + MIN)).toEqual({ kind: "react", emoji: "🤔" });
+    expect(await core.handleMessage(KOFI, "Kofi", "good evening family", SEVEN_PM + MIN)).toBeNull();   // judged not_a_guess
+    expect(state.load().emojiGame?.closed).toBe(false);
+  });
+
+  it("only asks the AI when it could matter", async () => {
+    await postGame();
+    await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN);                  // a listed answer: no AI needed
+    await core.handleMessage(KOFI, "Kofi", "the man in the whale", SEVEN_PM + MIN); // game already won
+    await core.handleMessage(KOFI, "Kofi", "🙌🙌", SEVEN_PM + MIN);                  // no words
+    expect(ai.judgeStoryGuess).not.toHaveBeenCalled();
+  });
+
+  it("doesn't judge reference guesses meant for the morning puzzle", async () => {
+    await postGame();
+    await core.handleMessage(AMA, "Ama", "John 3:17", SEVEN_PM + MIN);
+    expect(ai.judgeStoryGuess).not.toHaveBeenCalled();
   });
 
   it("shows in !today", async () => {

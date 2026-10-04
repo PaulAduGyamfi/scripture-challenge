@@ -1,5 +1,6 @@
-import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory } from "./game";
-import { aiReadGuess, makeHint, celebrate, makeEmoji } from "./ai";
+import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory,
+         startsVerse, quotesVerse } from "./game";
+import { aiReadGuess, makeHint, celebrate, makeEmoji, judgeStoryGuess } from "./ai";
 import { loadScriptures, loadStories } from "./sheet";
 import { optionalEnv } from "./config";
 import * as state from "./state";
@@ -14,7 +15,7 @@ export interface Post {
 
 // What handleMessage hands back to bot.ts
 export type Reply =
-  | (Post & { kind: "win" | "late" })   // "late" = correct, but someone already won today
+  | (Post & { kind: "win" | "late" | "onTrack" })   // late: correct after the winner; onTrack: part of it
   | { kind: "react"; emoji: string };   // no message, just an emoji on theirs (🤔 wrong, 👏 right but late)
 
 // "123456@c.us" -> "@123456", which WhatsApp shows as the person's name
@@ -50,6 +51,7 @@ const SPEED_BONUS = [                         // minutes after the puzzle was po
 ] as const;
 const LATE_POINTS = 1;                        // for each of the next correct answers after the winner
 const LATE_SPOTS = 3;                         // how many of them
+const ON_TRACK_POINTS = 1;                    // the start of the verse or a quote from it: once, round stays open
 
 // Midday Review: a verse from 2+ weeks ago, worth less, no speed bonus or bonus spots
 const REVIEW_POINTS: Record<AnswerType, number> = { both: 5, reference: 3, decoded: 2 };
@@ -208,7 +210,7 @@ function pickPuzzle(all: Scripture[]): string {
   if (!chosen) throw new Error("No scriptures available");
 
   Object.assign(s, {
-    today: { ...chosen, postedAt: Date.now() }, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [],
+    today: { ...chosen, postedAt: Date.now() }, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], onTrack: [],
   });
   s.used.push(formatRef(chosen));
   if (s.history.length === 0) s.history = s.used.slice(0, -1);   // first run: start from what's been used
@@ -242,6 +244,10 @@ export function handleMessage(senderId: string, senderName: string, text: string
       if (s.winner) return lateAnswer(s, senderId, senderName, sentAt);
       return winToday(s, today, forToday, senderId, senderName, sentAt);
     }
+    // Knows the verse but hasn't decoded it all: +1 once, and the puzzle stays open for the full answer
+    if (today && !s.winner && (startsVerse(text, today.clue) || quotesVerse(text, today.text))) {
+      return onTrackAnswer(s, senderId, senderName, sentAt);
+    }
     // Today's review, even once it's closed, so a late right answer gets 👏, not 🤔
     const lastReview = s.review && dayKey(s.review.verse.postedAt) === dayKey(sentAt) ? s.review : null;
     const forReview = lastReview ? matches(lastReview.verse) : { ref: false, words: false };
@@ -254,6 +260,16 @@ export function handleMessage(senderId: string, senderName: string, text: string
     if (game && namesStory(text, game.answers)) {
       if (!game.closed) return winEmoji(s, game, senderId, senderName, sentAt);
       return game.winner ? { kind: "react", emoji: "👏" } : null;
+    }
+    // Not one of the listed answers: while the game is open, the AI judges the right idea in other
+    // words ("the man swallowed by a whale"). Reference guesses were for the other puzzles, so skip those.
+    if (game && !game.closed && !guess && /[a-z]{3}/i.test(text)) {
+      const verdict = await judgeStoryGuess(text, game);
+      if (verdict === "correct") return winEmoji(s, game, senderId, senderName, sentAt);
+      if (verdict === "wrong") {
+        console.log(`Emoji Bible guess judged wrong for "${game.story}": ${text.slice(0, 100)}`);
+        return { kind: "react", emoji: "🤔" };
+      }
     }
 
     const somethingOpen = (today && !s.winner) || review;
@@ -290,6 +306,22 @@ async function winToday(s: State, today: NonNullable<State["today"]>, m: Matched
       `📖 ${fullRef(today)}:\n"${today.text}"\n\n` +
       `📊 Season total: ${p.points} points (#${rank} on the leaderboard) 🏆` +
       newsLines(p, before),
+    mentions: [senderId],
+  };
+}
+
+// The start of the verse or a 5-word quote from it: +1 the first time, a nudge to finish
+function onTrackAnswer(s: State, senderId: string, senderName: string, sentAt: number): Reply | null {
+  if (s.onTrack.includes(senderId)) return null;
+  const p = getPlayer(s, senderId, senderName, sentAt);
+  p.points += ON_TRACK_POINTS;
+  p.weekPoints += ON_TRACK_POINTS;
+  s.onTrack.push(senderId);
+  state.save(s);
+  return {
+    kind: "onTrack",
+    text: `👍 ${tag(senderId)}, you're on the right track! +${ON_TRACK_POINTS} point. ` +
+      "Finish the decode or add the reference to win it 🏆",
     mentions: [senderId],
   };
 }
@@ -456,7 +488,8 @@ export async function newEmojiGame(): Promise<string | null> {
     s.storiesUsed = [...(startOver ? [] : s.storiesUsed), chosen.story];
     state.save(s);
     return `😀 *Emoji Bible* 🎬\nWhich Bible story is this?\n\n${emoji}\n\n` +
-      `🎯 First to name it wins ${EMOJI_POINTS} points! Closes at ${when("closeEmoji")} ⏳`;
+      `🎯 Name it, or describe it in your own words! First right answer wins ${EMOJI_POINTS} points. ` +
+      `Closes at ${when("closeEmoji")} ⏳`;
   });
 }
 
@@ -661,6 +694,7 @@ export function help(): string {
     `• Decoded only: ${ANSWER_POINTS.decoded}`,
     `• ⚡ Speed bonus: ${bonus} (gone once a hint is out)`,
     `• ✅ Next ${LATE_SPOTS} correct answers after the winner: +${LATE_POINTS} each`,
+    `• 👍 The start of the verse, or 5 words in a row from it: +${ON_TRACK_POINTS} (once), and the puzzle stays open`,
     "• 🌙 Once the answer is revealed, the day is closed",
     "",
     `💡 Hints come at ${when("hint")} and ${when("bookHint")}, and the answer at ${when("reveal")}.`,

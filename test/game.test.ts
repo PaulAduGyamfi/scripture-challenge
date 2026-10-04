@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { findBook, makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory } from "../src/game";
+import { findBook, makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory,
+  startsVerse, quotesVerse } from "../src/game";
 import type { Scripture } from "../src/types";
 
 const romans: Scripture = {
@@ -160,5 +161,39 @@ describe("namesStory", () => {
     expect(namesStory("noah ark", ["noah's ark"])).toBe(true);
     expect(namesStory("noahs ark", ["noah's ark"])).toBe(true);
     expect(namesStory("Noah’s ark", ["noahs ark"])).toBe(true);
+  });
+});
+
+describe("startsVerse", () => {
+  const clue = "For God so loved the world that He gave His only begotten Son";   // 13 words: needs 7
+
+  it("accepts half or more, from the first word, with typos", () => {
+    expect(startsVerse("For God so loved the world that", clue)).toBe(true);
+    expect(startsVerse("is it: for god so lovd the world that...", clue)).toBe(true);
+  });
+
+  it("needs enough of it", () => {
+    expect(startsVerse("For God so loved the world", clue)).toBe(false);   // 6 of 13
+    expect(startsVerse("God so loved the world that He gave", clue)).toBe(false);   // not from the start
+  });
+
+  it("needs at least 4 words even for a short clue", () => {
+    const short = "Jesus wept and the Jews said";   // 6 words: half is 3, but the minimum is 4
+    expect(startsVerse("jesus wept and the", short)).toBe(true);
+    expect(startsVerse("jesus wept and", short)).toBe(false);
+  });
+});
+
+describe("quotesVerse", () => {
+  const text = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him";
+
+  it("accepts 5 words in a row from anywhere in the verse", () => {
+    expect(quotesVerse("that whosoever believeth in him!", text)).toBe(true);
+    expect(quotesVerse("he gave his only begoten son", text)).toBe(true);
+  });
+
+  it("rejects shorter or scattered quotes", () => {
+    expect(quotesVerse("whosoever believeth in him", text)).toBe(false);
+    expect(quotesVerse("God loved world gave son", text)).toBe(false);
   });
 });

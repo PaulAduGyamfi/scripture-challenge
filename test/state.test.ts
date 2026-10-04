@@ -12,7 +12,7 @@ afterEach(() => process.chdir(home));
 describe("state", () => {
   it("starts empty when there is no state.json", () => {
     expect(state.load()).toEqual({
-      today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], used: [],
+      today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], onTrack: [], used: [],
       history: [], review: null, reviewed: [], emojiGame: null, storiesUsed: [], scores: {},
     });
   });

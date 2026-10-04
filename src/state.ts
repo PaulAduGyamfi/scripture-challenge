@@ -66,6 +66,7 @@ const StateSchema = z.object({
   revealed: z.boolean().default(false),               // the 9 PM reveal went out
   lateSolvers: z.array(z.string()).default([]),       // correct after the winner, in order; the first 3 got +1
   hints: z.array(z.string()).default([]),             // hints posted today, for !today
+  onTrack: z.array(z.string()).default([]),           // got today's +1 for starting or quoting the verse
   used: z.array(z.string()),
   history: z.array(z.string()).default([]),           // every morning verse in order; never reset
   review: ReviewSchema.nullable().default(null),
@@ -87,7 +88,7 @@ const RESTORE = `Copy the newest file from the ${BACKUPS} folder over ${FILE}.`;
 
 export function load(): State {
   if (!fs.existsSync(FILE)) {
-    return { today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], used: [],
+    return { today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], onTrack: [], used: [],
       history: [], review: null, reviewed: [], emojiGame: null, storiesUsed: [], scores: {} };
   }
   let raw: unknown;

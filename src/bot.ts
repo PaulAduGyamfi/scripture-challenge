@@ -113,10 +113,10 @@ async function onMessage(msg: Message): Promise<void> {
   if (!reply) return;
   if (reply.kind === "react") return react(msg, reply.emoji);
 
-  // At most one "already solved" reply per minute, so a rush of late answers isn't spammy.
-  // Their points (if they got a bonus spot) still count; a 👏 tells them they were right.
-  if (reply.kind === "late") {
-    if (Date.now() - lastLateReply < 60_000) return react(msg, "👏");
+  // At most one late or "on the right track" reply per minute, so a rush of answers isn't spammy.
+  // Their points still count; a 👏 (late) or 👍 (on track) tells them so.
+  if (reply.kind === "late" || reply.kind === "onTrack") {
+    if (Date.now() - lastLateReply < 60_000) return react(msg, reply.kind === "late" ? "👏" : "👍");
     lastLateReply = Date.now();
   }
   if (reply.kind === "win") await react(msg, "🔥");

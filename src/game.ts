@@ -157,6 +157,36 @@ export function matchesDecode(message: string, clue: string): boolean {
   return matched / target.length >= 0.8;
 }
 
+// "On the right track" for the morning puzzle: the message starts the verse (at least 4 words and
+// half the clue, from the first word, in order, typos allowed) ...
+export function startsVerse(message: string, clue: string): boolean {
+  const target = words(clue);
+  const said = words(message);
+  const needed = Math.max(4, Math.ceil(target.length / 2));
+  let matched = 0, from = 0;
+  for (const t of target) {
+    const at = said.findIndex((w, k) => k >= from && closeEnough(w, t));
+    if (at < 0) break;
+    matched++;
+    from = at + 1;
+  }
+  return matched >= needed;
+}
+
+// ... or quotes at least 5 words in a row from anywhere in the verse's text
+export function quotesVerse(message: string, text: string, run = 5): boolean {
+  const verse = words(text);
+  const said = words(message);
+  for (let i = 0; i < said.length; i++) {
+    for (let j = 0; j < verse.length; j++) {
+      let n = 0;
+      while (i + n < said.length && j + n < verse.length && closeEnough(said[i + n] ?? "", verse[j + n] ?? "")) n++;
+      if (n >= run) return true;
+    }
+  }
+  return false;
+}
+
 const SMALL_WORDS = new Set(["the", "a", "an", "and", "of", "in", "on", "to", "his", "her"]);
 
 // Emoji Bible: true if the message names the story. Every important word of one answer must

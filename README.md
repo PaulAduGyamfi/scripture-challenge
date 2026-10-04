@@ -35,6 +35,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | Reference only (John 3:16) | 6 |
 | Decoded words only | 3 |
 | Speed bonus, before any hint | +5 within 30 min, +3 within 2 hr, +1 within 4 hr |
+| The start of the verse (half the clue or more) or 5 words in a row from it, before anyone wins | +1, once, and the puzzle stays open |
 | One of the next 3 correct answers after the winner | +1 |
 | Midday Review (first correct only) | 5 / 3 / 2 for both / reference / decoded |
 | Emoji Bible (first correct only) | 2 |
