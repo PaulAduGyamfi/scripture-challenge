@@ -64,12 +64,15 @@ const EMOJI_POINTS = 2;                       // Emoji Bible, first correct answ
 // Every scheduled post, in one place (cron format: minute hour day month weekday).
 // bot.ts runs these; !schedule, !help and the bot's messages read their times from here.
 export const SCHEDULE = {
+  puzzleSoon:   "50 6 * * *",                // the "... in 10 minutes" reminders
   backup:       "55 6 * * *",
   puzzle:       "0 7 * * *",
   hint:         "0 12 * * *",
+  reviewSoon:   "50 13 * * *",
   review:       "0 14 * * *",
   closeReview:  "0 17 * * *",
   bookHint:     "0 18 * * *",
+  emojiSoon:    "50 18 * * *",
   emoji:        "0 19 * * *",
   closeEmoji:   "0 20 * * *",
   reveal:       "0 21 * * *",
@@ -643,9 +646,24 @@ export function backupState(): void {
   if (file) console.log(`Backed up scores to ${file}`);
 }
 
+// Midday Review is "starting soon" until there are enough old verses to pick from
+const reviewNotYet = () => oldVerses(state.load()).length < REVIEW_MIN_POOL;
+const hasEmojiBible = () => Boolean(optionalEnv("STORIES_CSV_URL"));
+
+// 10 minutes before each game: a heads-up. null when that game won't run today.
+export function reminder(game: "puzzle" | "review" | "emoji"): string | null {
+  if (game === "puzzle") return `⏰ Today's scripture drops at ${when("puzzle")}, in 10 minutes! Get ready 📖🔥`;
+  if (game === "review") {
+    if (reviewNotYet()) return null;
+    return `⏰ *Midday Review* starts at ${when("review")}, in 10 minutes! 🔁🧠`;
+  }
+  if (!hasEmojiBible()) return null;
+  return `⏰ *Emoji Bible* starts at ${when("emoji")}, in 10 minutes! 😀🎬`;
+}
+
 // !schedule: the whole day at a glance
 export function schedule(): string {
-  const reviewSoon = oldVerses(state.load()).length < REVIEW_MIN_POOL;
+  const reviewSoon = reviewNotYet();
   const zone = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
     .formatToParts(new Date()).find(p => p.type === "timeZoneName")?.value;
   return [
@@ -655,7 +673,7 @@ export function schedule(): string {
     `💡 ${when("hint")}: Extra hint (the speed bonus ends)`,
     `🔁 ${when("review")}: Midday Review, until ${when("closeReview")}` + (reviewSoon ? " _(starting soon)_" : ""),
     `🔦 ${when("bookHint")}: Last hint: the book`,
-    ...(optionalEnv("STORIES_CSV_URL") ? [`😀 ${when("emoji")}: Emoji Bible, until ${when("closeEmoji")}`] : []),
+    ...(hasEmojiBible() ? [`😀 ${when("emoji")}: Emoji Bible, until ${when("closeEmoji")}`] : []),
     `🌙 ${when("reveal")}: The answer, if nobody got it`,
     "",
     `📅 Sundays ${when("weeklyWrap")}: Weekly standings`,

@@ -132,6 +132,9 @@ const at = (time: string, job: () => Promise<void>) =>
   cron.schedule(time, () => { job().catch(err => console.error(`Job ${time} failed:`, err)); }, { timezone: TZ });
 
 const { SCHEDULE: S } = core;
+at(S.puzzleSoon,  async () => post(core.reminder("puzzle")));      // 10-minute heads-ups
+at(S.reviewSoon,  async () => post(core.reminder("review")));
+at(S.emojiSoon,   async () => post(core.reminder("emoji")));
 at(S.backup,      async () => { core.backupState(); });
 at(S.puzzle,      async () => post(await core.newPuzzle()));
 at(S.hint,        async () => post(await core.hint()));            // AI hint

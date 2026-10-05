@@ -815,6 +815,29 @@ describe("!schedule", () => {
     vi.unstubAllEnvs();
   });
 
+  it("posts a reminder 10 minutes before the puzzle, the review and Emoji Bible", () => {
+    expect(core.SCHEDULE.puzzleSoon).toBe("50 6 * * *");
+    expect(core.SCHEDULE.reviewSoon).toBe("50 13 * * *");
+    expect(core.SCHEDULE.emojiSoon).toBe("50 18 * * *");
+    expect(core.reminder("puzzle")).toContain("7 AM, in 10 minutes");
+  });
+
+  it("skips the review reminder while the Midday Review is still starting soon", () => {
+    expect(core.reminder("review")).toBeNull();
+    const s = state.load();
+    s.history = Array.from({ length: 30 }, (_, i) => `Psalms ${i + 1}:1`);
+    state.save(s);
+    expect(core.reminder("review")).toContain("Midday Review* starts at 2 PM");
+  });
+
+  it("skips the Emoji Bible reminder when there's no Stories tab", () => {
+    vi.stubEnv("STORIES_CSV_URL", "");
+    expect(core.reminder("emoji")).toBeNull();
+    vi.stubEnv("STORIES_CSV_URL", "https://example.test/stories.csv");
+    expect(core.reminder("emoji")).toContain("Emoji Bible* starts at 7 PM");
+    vi.unstubAllEnvs();
+  });
+
   it("uses the same times in !help", () => {
     expect(core.help()).toContain("Hints come at 12 PM and 6 PM, and the answer at 9 PM");
   });
