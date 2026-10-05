@@ -169,10 +169,12 @@ Use [pm2](https://pm2.keymetrics.io) so the bot restarts if it crashes and start
 
 ```bash
 npm install -g pm2
-pm2 start dist/bot.js --name scripture-bot   # run from the project folder
+pm2 start dist/bot.js --name scripture-bot --kill-timeout 8000 --time   # run from the project folder
 pm2 save
 pm2 startup                                  # then run the command it prints
 ```
+
+`--kill-timeout 8000` gives the bot time to close Chrome when it restarts (pm2's default, 1.6 seconds, can leave Chrome running and break the next start). `--time` puts the time on every log line.
 
 Useful commands:
 

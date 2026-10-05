@@ -27,6 +27,8 @@ const client = new Client({
 const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 const humanPause = () => wait(3_000 + Math.random() * 7_000);  // 3 to 10 seconds
 let lastLateReply = 0;                                          // for "already solved" replies
+let heldReplies: core.Post[] = [];                              // late / on-track replies waiting their turn
+let heldTimer: NodeJS.Timeout | null = null;
 
 // Plain text, or text with @mentions that WhatsApp should turn into tags
 type Outgoing = string | core.Post | null;
@@ -68,10 +70,26 @@ client.on("ready", () => {
   if (!GROUP_ID) console.log("No GROUP_ID yet. Send any message in your test group to see its ID.");
 });
 
+// Closes Chrome before exiting. Otherwise it can outlive the bot, still holding the
+// WhatsApp session, and the next start fails with "Target closed" until it finally lets go.
+let quitting = false;
+async function quit(code: number): Promise<void> {
+  if (quitting) return;
+  quitting = true;
+  const giveUp = wait(5_000).then(() => console.error("Chrome didn't close in time"));
+  await Promise.race([client.destroy().catch(err => console.error("Couldn't close Chrome:", err)), giveUp]);
+  process.exit(code);
+}
+
+// pm2 sends SIGINT to stop or restart the bot
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => { console.log(`${signal}: shutting down`); void quit(0); });
+}
+
 // If WhatsApp logs the bot out, exit so pm2 restarts it and shows a fresh QR code
 client.on("disconnected", reason => {
   console.error("Disconnected from WhatsApp:", reason);
-  process.exit(1);
+  void quit(1);
 });
 
 async function onMessage(msg: Message): Promise<void> {
@@ -113,14 +131,33 @@ async function onMessage(msg: Message): Promise<void> {
   if (!reply) return;
   if (reply.kind === "react") return react(msg, reply.emoji);
 
-  // At most one late or "on the right track" reply per minute, so a rush of answers isn't spammy.
-  // Their points still count; a 👏 (late) or 👍 (on track) tells them so.
+  // At most one late or "on the right track" message per minute, so a rush of answers isn't spammy.
+  // Anyone inside that minute gets a 👏 (late) or 👍 (on track) now, and their reply is held and
+  // posted with the others when the minute is up, so nobody goes unanswered if the reaction fails.
   if (reply.kind === "late" || reply.kind === "onTrack") {
-    if (Date.now() - lastLateReply < 60_000) return react(msg, reply.kind === "late" ? "👏" : "👍");
+    const waitMs = 60_000 - (Date.now() - lastLateReply);
+    if (waitMs > 0) {
+      heldReplies.push({ text: reply.text, mentions: reply.mentions });
+      heldTimer ??= setTimeout(postHeldReplies, waitMs);
+      return react(msg, reply.kind === "late" ? "👏" : "👍");
+    }
     lastLateReply = Date.now();
   }
   if (reply.kind === "win") await react(msg, "🔥");
   await replyLikeAPerson(msg, reply);               // quotes the winning message
+}
+
+// Everyone held back by the one-a-minute rule, in one message
+function postHeldReplies(): void {
+  heldTimer = null;
+  const replies = heldReplies;
+  heldReplies = [];
+  if (replies.length === 0) return;
+  lastLateReply = Date.now();
+  post({
+    text: replies.map(r => r.text).join("\n\n"),
+    mentions: [...new Set(replies.flatMap(r => r.mentions))],
+  }).catch(err => console.error("Couldn't post held replies:", err));
 }
 
 // One bad message must never take the bot down
@@ -151,5 +188,5 @@ at(S.seasonFinale, async () =>                                 // Dec 31 season 
 
 client.initialize().catch(err => {
   console.error("Couldn't start WhatsApp:", err);
-  process.exit(1);
+  void quit(1);
 });
