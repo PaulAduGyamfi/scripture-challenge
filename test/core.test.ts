@@ -357,6 +357,12 @@ describe("hint and reveal", () => {
     expect(await core.reveal()).toBeNull();
   });
 
+  it("still gives a hint after someone has won when the admin asks for one", async () => {
+    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);
+    expect(await core.hint({ evenIfSolved: true })).toContain("behest; lifelong");
+    expect(await core.hint({ evenIfSolved: true })).toContain("book of 📘 John");
+  });
+
   it("reveals the answer when nobody got it", async () => {
     expect(await core.reveal()).toContain("It was 📖 John 3:16 (KJV)");
   });

@@ -142,7 +142,7 @@ async function onMessage(msg: Message): Promise<void> {
 
   if (ADMIN_ID && senderId === ADMIN_ID) {          // test commands, only for you
     if (body === "!new") return post(await core.newPuzzle());
-    if (body === "!grouphint") return post(await core.hint());
+    if (body === "!grouphint") return post(await core.hint({ evenIfSolved: true }));
     if (body === "!reveal") return post(await core.reveal());
     if (body === "!review") return post(await core.newReview());
     if (body === "!closereview") return post(await core.closeReview());

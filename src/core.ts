@@ -409,10 +409,11 @@ function lateAnswer(s: State, senderId: string, senderName: string, sentAt: numb
   };
 }
 
-export async function hint(): Promise<string | null> {
+// The scheduled hints skip a solved puzzle; the admin's !grouphint passes evenIfSolved to give one anyway
+export async function hint({ evenIfSolved = false } = {}): Promise<string | null> {
   const s = await inOrder(async () => {
     const s = state.load();
-    if (!s.today || s.winner) return null;
+    if (!s.today || (s.winner && !evenIfSolved)) return null;
     s.hintsGiven += 1;
     state.save(s);
     return s;
