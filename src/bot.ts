@@ -94,7 +94,33 @@ client.on("qr", qr => qrcode.generate(qr, { small: true }));
 client.on("ready", () => {
   console.log("Bot is ready");
   if (!GROUP_ID) console.log("No GROUP_ID yet. Send any message in your test group to see its ID.");
+  healthTimer ??= setInterval(() => { void checkHealth(); }, 2 * 60_000);   // "ready" can fire again on reconnect
 });
+
+// WhatsApp Web sometimes reloads its page under the bot. The bot stays "online" in pm2 but every
+// send fails ("detached Frame"), so it's restarted instead: pm2 brings it back in about 30 seconds.
+const BROWSER_GONE = /detached Frame|Target closed|Session closed|Execution context was destroyed/i;
+function restartIfBrowserGone(err: unknown): void {
+  if (err instanceof Error && BROWSER_GONE.test(err.message)) {
+    console.error("WhatsApp Web is gone, restarting:", err.message);
+    void quit(1);
+  }
+}
+
+// Every 2 minutes, so a broken bot is caught before the next scheduled post
+let unhealthyChecks = 0;
+let healthTimer: NodeJS.Timeout | null = null;
+async function checkHealth(): Promise<void> {
+  try {
+    const waState = await Promise.race([client.getState(), wait(30_000).then(() => "NO ANSWER")]);
+    if (waState === "CONNECTED") { unhealthyChecks = 0; return; }
+    unhealthyChecks += 1;
+    console.error(`WhatsApp state is ${waState} (${unhealthyChecks} check(s) in a row)`);
+    if (unhealthyChecks >= 3) void quit(1);           // 3 in a row: not just a brief reconnect
+  } catch (err) {
+    restartIfBrowserGone(err);
+  }
+}
 
 // Closes Chrome before exiting. Otherwise it can outlive the bot, still holding the
 // WhatsApp session, and the next start fails with "Target closed" until it finally lets go.
@@ -188,11 +214,13 @@ function postHeldReplies(): void {
 
 // One bad message must never take the bot down
 client.on("message", msg => {
-  onMessage(msg).catch(err => console.error("Error handling message:", err));
+  onMessage(msg).catch(err => { console.error("Error handling message:", err); restartIfBrowserGone(err); });
 });
 
 const at = (time: string, job: () => Promise<void>) =>
-  cron.schedule(time, () => { job().catch(err => console.error(`Job ${time} failed:`, err)); }, { timezone: TZ });
+  cron.schedule(time, () => {
+    job().catch(err => { console.error(`Job ${time} failed:`, err); restartIfBrowserGone(err); });
+  }, { timezone: TZ });
 
 const { SCHEDULE: S } = core;
 at(S.puzzleSoon,  async () => post(core.reminder("puzzle")));      // 10-minute heads-ups
