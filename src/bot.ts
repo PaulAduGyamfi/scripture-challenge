@@ -36,14 +36,26 @@ const asPost = (out: string | core.Post): core.Post => typeof out === "string" ?
 
 async function replyLikeAPerson(msg: Message, out: string | core.Post): Promise<void> {
   const { text, mentions } = core.replyTo(msg.author ?? msg.from, out);   // always tags who asked
+  console.log(`[trace] replying to ${msg.from}`);
   try {
     await (await msg.getChat()).sendStateTyping();  // shows "typing..." like a person
   } catch {
     // Nice to have only; WhatsApp Web updates sometimes break it
   }
+  console.log("[trace] typing done");
   await humanPause();
   const quoted = messageId(msg);                    // quotes their message, when WhatsApp gives us its ID
-  await client.sendMessage(msg.from, text, quoted ? { mentions, quotedMessageId: quoted } : { mentions });
+  if (quoted) {
+    try {
+      await client.sendMessage(msg.from, text, { mentions, quotedMessageId: quoted });
+      console.log(`[trace] sent, quoting ${quoted}`);
+      return;
+    } catch (err) {                                 // the quote is nice to have; the reply is not
+      console.error(`Couldn't quote ${quoted}, sending without it:`, err);
+    }
+  }
+  await client.sendMessage(msg.from, text, { mentions });
+  console.log("[trace] sent, no quote");
 }
 
 async function post(out: Outgoing): Promise<void> {
@@ -179,7 +191,13 @@ function postHeldReplies(): void {
 }
 
 // One bad message must never take the bot down
+// TEMPORARY: tracing why replies stopped. Remove once fixed.
+const trace = (msg: Message) =>
+  `from=${msg.from} author=${msg.author} fromMe=${msg.fromMe} id=${JSON.stringify(msg.id)} body=${JSON.stringify(msg.body.slice(0, 30))}`;
+client.on("message_create", msg => console.log(`[trace] message_create ${trace(msg)}`));
+
 client.on("message", msg => {
+  console.log(`[trace] message ${trace(msg)}`);
   onMessage(msg).catch(err => console.error("Error handling message:", err));
 });
 
