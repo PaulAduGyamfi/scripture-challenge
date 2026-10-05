@@ -42,7 +42,8 @@ async function replyLikeAPerson(msg: Message, out: string | core.Post): Promise<
     // Nice to have only; WhatsApp Web updates sometimes break it
   }
   await humanPause();
-  await msg.reply(text, undefined, { mentions });
+  const quoted = messageId(msg);                    // quotes their message, when WhatsApp gives us its ID
+  await client.sendMessage(msg.from, text, quoted ? { mentions, quotedMessageId: quoted } : { mentions });
 }
 
 async function post(out: Outgoing): Promise<void> {
@@ -53,11 +54,28 @@ async function post(out: Outgoing): Promise<void> {
 
 const withIntro = (intro: string, p: core.Post): core.Post => ({ ...p, text: intro + p.text });
 
+// whatsapp-web.js 1.34.7 sometimes leaves msg.id._serialized empty, and then quietly skips
+// reactions and quotes. WhatsApp's ID is "fromMe_chat_id", plus "_sender" in groups, so build it.
+const idPart = (x: unknown) => typeof x === "string" ? x : (x as { _serialized?: string } | undefined)?._serialized;
+function messageId(msg: Message): string | undefined {
+  const id = msg.id as Partial<Message["id"]> & { participant?: unknown };
+  if (id._serialized) return id._serialized;
+  const chat = idPart(id.remote);
+  if (!id.id || !chat) return undefined;
+  const sender = idPart(id.participant);
+  return [String(Boolean(id.fromMe)), chat, id.id, ...(sender ? [sender] : [])].join("_");
+}
+
 // An emoji reaction instead of a message, so guesses never spam the group
 async function react(msg: Message, emoji: string): Promise<void> {
+  const id = messageId(msg);
+  if (!id) {
+    console.error(`Couldn't react ${emoji}: no message ID in`, JSON.stringify(msg.id));
+    return;
+  }
   try {
-    await msg.react(emoji);
-    console.log(`Reacted ${emoji} to ${msg.id._serialized}`);
+    await client.sendReaction(id, emoji);
+    console.log(`Reacted ${emoji} to ${id}`);
   } catch (err) {
     console.error(`Couldn't react ${emoji}:`, err);   // nice to have only, but say why
   }
