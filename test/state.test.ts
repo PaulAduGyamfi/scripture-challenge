@@ -13,7 +13,7 @@ describe("state", () => {
   it("starts empty when there is no state.json", () => {
     expect(state.load()).toEqual({
       today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], onTrack: [], used: [],
-      history: [], review: null, reviewed: [], emojiGame: null, storiesUsed: [], scores: {},
+      history: [], review: null, reviewed: [], emojiGame: null, storiesUsed: [], riddle: null, riddlesUsed: [], scores: {},
     });
   });
 
@@ -22,7 +22,7 @@ describe("state", () => {
     s.used.push("John 3:16");
     s.scores["111@c.us"] = {
       name: "Ama", points: 11, wins: 1, fastestMin: 2, season: 2026, week: "2026-03-02", weekPoints: 11,
-      streak: 2, bestStreak: 4, lastSolvedDay: "2026-03-04", emojiWins: 0,
+      streak: 2, bestStreak: 4, lastSolvedDay: "2026-03-04", emojiWins: 0, riddleWins: 0,
     };
     state.save(s);
     expect(state.load()).toEqual(s);
@@ -36,7 +36,8 @@ describe("state", () => {
     }));
     const s = state.load();
     expect(s).toMatchObject({ revealed: false, lateSolvers: [], hints: [], history: [], review: null, reviewed: [] });
-    expect(s.scores["111@c.us"]).toMatchObject({ points: 6, streak: 0, bestStreak: 0, lastSolvedDay: null });
+    expect(s).toMatchObject({ riddle: null, riddlesUsed: [] });
+    expect(s.scores["111@c.us"]).toMatchObject({ points: 6, streak: 0, bestStreak: 0, lastSolvedDay: null, riddleWins: 0 });
   });
 
   it("refuses to load broken JSON instead of wiping scores", () => {

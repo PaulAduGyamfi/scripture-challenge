@@ -40,3 +40,10 @@ export const BOOKS = [
     reference?: string;     // "Jonah 1-2"
     emoji?: string;         // your own clue; empty means the AI makes one
   }
+
+  // One row of the Riddles tab, for the Bible Riddle game
+  export interface Riddle {
+    riddle: string;         // the riddle itself, posted at 10 AM
+    answers: string[];      // any one of these counts as correct: ["noah", "the ark"]
+    reference?: string;     // "Genesis 6-9", shown with the answer
+  }

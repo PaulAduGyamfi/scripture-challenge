@@ -1,10 +1,10 @@
 import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory,
          startsVerse, quotesVerse } from "./game";
-import { aiReadGuess, makeHint, celebrate, makeEmoji, judgeStoryGuess } from "./ai";
-import { loadScriptures, loadStories } from "./sheet";
+import { aiReadGuess, makeHint, celebrate, makeEmoji, judgeStoryGuess, judgeRiddleGuess } from "./ai";
+import { loadScriptures, loadStories, loadRiddles } from "./sheet";
 import { optionalEnv } from "./config";
 import * as state from "./state";
-import type { State, Player, Review, EmojiGame } from "./state";
+import type { State, Player, Review, EmojiGame, RiddleGame } from "./state";
 import type { AnswerType, Scripture } from "./types";
 
 // A message that @mentions people: bot.ts passes `mentions` to WhatsApp so the tags ping
@@ -59,6 +59,7 @@ const REVIEW_MIN_AGE = 14;                    // only verses at least this many 
 const REVIEW_MIN_POOL = 10;                   // don't start until there are this many to choose from
 
 const EMOJI_POINTS = 2;                       // Emoji Bible, first correct answer only
+const RIDDLE_POINTS = 3;                      // Bible Riddle, first correct answer only
 
 // ---------- Schedule ----------
 // Every scheduled post, in one place (cron format: minute hour day month weekday).
@@ -67,6 +68,9 @@ export const SCHEDULE = {
   puzzleSoon:   "50 6 * * *",                // the "... in 10 minutes" reminders
   backup:       "55 6 * * *",
   puzzle:       "0 7 * * *",
+  riddleSoon:   "50 9 * * *",
+  riddle:       "0 10 * * *",
+  closeRiddle:  "0 12 * * *",
   hint:         "0 12 * * *",
   reviewSoon:   "50 13 * * *",
   review:       "0 14 * * *",
@@ -141,6 +145,7 @@ const BADGES: { icon: string; name: string; earned: (p: Player) => boolean }[] =
   { icon: "🕊️", name: "Faithful", earned: p => p.bestStreak >= 7 },
   { icon: "⛰️", name: "Unshakeable", earned: p => p.bestStreak >= 30 },
   { icon: "😀", name: "Emoji Master", earned: p => p.emojiWins >= 10 },
+  { icon: "🧩", name: "Riddle Master", earned: p => p.riddleWins >= 10 },
 ];
 const badgesOf = (p: Player) => BADGES.filter(b => b.earned(p)).map(b => `${b.icon} ${b.name}`);
 
@@ -177,9 +182,9 @@ function getPlayer(s: State, id: string, name: string, now: number): Player {
   const week = weekKey(now);
   const p: Player = s.scores[id] ?? {
     name, points: 0, wins: 0, fastestMin: null, season, week, weekPoints: 0,
-    streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0,
+    streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0, riddleWins: 0,
   };
-  if (p.season !== season) Object.assign(p, { season, points: 0, wins: 0, fastestMin: null, emojiWins: 0 });
+  if (p.season !== season) Object.assign(p, { season, points: 0, wins: 0, fastestMin: null, emojiWins: 0, riddleWins: 0 });
   if (p.week !== week) Object.assign(p, { week, weekPoints: 0 });
   p.name = name;
   s.scores[id] = p;
@@ -234,7 +239,8 @@ export function handleMessage(senderId: string, senderName: string, text: string
     const today = s.today && !s.revealed ? s.today : null;    // after the reveal, nothing left to win
     const review = s.review && !s.review.closed ? s.review : null;
     const game = s.emojiGame && dayKey(s.emojiGame.postedAt) === dayKey(sentAt) ? s.emojiGame : null;
-    if (!today && !review && !game) return null;
+    const riddle = s.riddle && dayKey(s.riddle.postedAt) === dayKey(sentAt) ? s.riddle : null;
+    if (!today && !review && !game && !riddle) return null;
 
     // The AI only looks at messages that might be a reference, so "see you at 5pm" costs nothing
     const guess = !today && !review ? null
@@ -259,21 +265,34 @@ export function handleMessage(senderId: string, senderName: string, text: string
       return lastReview.winner ? { kind: "react", emoji: "👏" } : null;   // after the reveal: nothing
     }
 
-    // Emoji Bible answers are story names, so they're checked last
-    if (game && namesStory(text, game.answers)) {
-      if (!game.closed) return winEmoji(s, game, senderId, senderName, sentAt);
-      return game.winner ? { kind: "react", emoji: "👏" } : null;
+    // Bible Riddle and Emoji Bible answers are names, so they're checked last: open games first,
+    // then today's closed ones, so a late right answer gets 👏 (or nothing, once revealed)
+    if (riddle && !riddle.closed && namesStory(text, riddle.answers)) return winRiddle(s, riddle, senderId, senderName, sentAt);
+    if (game && !game.closed && namesStory(text, game.answers)) return winEmoji(s, game, senderId, senderName, sentAt);
+    for (const g of [riddle, game]) {
+      if (g?.closed && namesStory(text, g.answers)) return g.winner ? { kind: "react", emoji: "👏" } : null;
     }
-    // Not one of the listed answers: while the game is open, the AI judges the right idea in other
+    // Not one of the listed answers: while a game is open, the AI judges the right idea in other
     // words ("the man swallowed by a whale"). Reference guesses were for the other puzzles, so skip those.
-    if (game && !game.closed && !guess && /[a-z]{3}/i.test(text)) {
+    const judgeable = !guess && /[a-z]{3}/i.test(text);
+    let judgedWrong = false;
+    if (riddle && !riddle.closed && judgeable) {
+      const verdict = await judgeRiddleGuess(text, riddle);
+      if (verdict === "correct") return winRiddle(s, riddle, senderId, senderName, sentAt);
+      if (verdict === "wrong") {
+        console.log(`Bible Riddle answer judged wrong for "${riddle.answers[0] ?? ""}": ${text.slice(0, 100)}`);
+        judgedWrong = true;
+      }
+    }
+    if (game && !game.closed && judgeable) {
       const verdict = await judgeStoryGuess(text, game);
       if (verdict === "correct") return winEmoji(s, game, senderId, senderName, sentAt);
       if (verdict === "wrong") {
         console.log(`Emoji Bible guess judged wrong for "${game.story}": ${text.slice(0, 100)}`);
-        return { kind: "react", emoji: "🤔" };
+        judgedWrong = true;
       }
     }
+    if (judgedWrong) return { kind: "react", emoji: "🤔" };
 
     const somethingOpen = (today && !s.winner) || review;
     return guess && somethingOpen ? { kind: "react", emoji: "🤔" } : null;   // no spam, just a reaction
@@ -375,6 +394,29 @@ async function winEmoji(s: State, game: EmojiGame, senderId: string, senderName:
   };
 }
 
+// First correct answer to the Bible Riddle
+function winRiddle(s: State, riddle: RiddleGame, senderId: string, senderName: string, sentAt: number): Reply {
+  const minutes = Math.max(0, (sentAt - riddle.postedAt) / 60_000);
+  const p = getPlayer(s, senderId, senderName, sentAt);
+  const before = badgesOf(p);
+  p.points += RIDDLE_POINTS;
+  p.weekPoints += RIDDLE_POINTS;
+  p.riddleWins += 1;
+  riddle.winner = { id: senderId, name: senderName, points: RIDDLE_POINTS, minutes };
+  riddle.closed = true;
+  state.save(s);
+  return {
+    kind: "win",
+    text: `🧩 ${tag(senderId)} solved the riddle in ⏱️ ${formatTime(minutes)}!\n` +
+      `💡 It's *${riddleAnswer(riddle)}*` + (riddle.reference ? ` (📖 ${riddle.reference})` : "") + "\n" +
+      `✨ +${RIDDLE_POINTS} points ✨` + newsLines(p, before),
+    mentions: [senderId],
+  };
+}
+
+// The first listed answer, capitalised: "noah" -> "Noah"
+const riddleAnswer = (r: RiddleGame) => (r.answers[0] ?? "").replace(/^./, c => c.toUpperCase());
+
 // Correct, but someone already won. The next 3 people get +1; after that it's just a well done
 // (both count for their streak), so copying the answer from the chat isn't worth much.
 function lateAnswer(s: State, senderId: string, senderName: string, sentAt: number): Reply | null {
@@ -475,6 +517,38 @@ export async function newReview(): Promise<string | null> {
 }
 
 // closeReview time: closes the review, revealing the answer if nobody got it
+// ---------- Bible Riddle ----------
+// riddle time: a Bible riddle from the Riddles tab. Returns null if there's no Riddles tab.
+export async function newRiddle(): Promise<string | null> {
+  const riddles = await loadRiddles();
+  if (riddles.length === 0) return null;
+  return inOrder(async () => {
+    const s = state.load();
+    const fresh = riddles.filter(r => !s.riddlesUsed.includes(r.riddle));
+    const startOver = fresh.length === 0;                         // every riddle used: start over
+    const chosen = pick(startOver ? riddles : fresh);
+    if (!chosen) return null;
+    s.riddle = { ...chosen, postedAt: Date.now(), winner: null, closed: false };
+    s.riddlesUsed = [...(startOver ? [] : s.riddlesUsed), chosen.riddle];
+    state.save(s);
+    return `🧩 *Bible Riddle* 🤔\n\n${chosen.riddle}\n\n` +
+      `🎯 First right answer wins ${RIDDLE_POINTS} points! Closes at ${when("closeRiddle")} ⏳`;
+  });
+}
+
+// closeRiddle time: closes the riddle, revealing the answer if nobody got it
+export function closeRiddle(): Promise<string | null> {
+  return inOrder(async () => {
+    const s = state.load();
+    const r = s.riddle;
+    if (!r || r.closed) return null;
+    r.closed = true;
+    state.save(s);
+    return `🧩 Bible Riddle closed! Nobody got it 😮\nThe answer was *${riddleAnswer(r)}*` +
+      (r.reference ? ` (📖 ${r.reference})` : "") + `. New riddle tomorrow at ${when("riddle")}! 🙌`;
+  });
+}
+
 // ---------- Emoji Bible ----------
 // emoji time: a Bible story told in emoji, from the Stories tab. Returns null if there's no Stories tab.
 export async function newEmojiGame(): Promise<string | null> {
@@ -527,11 +601,21 @@ export function closeReview(): Promise<string | null> {
 export function todayPuzzle(): Post {
   const s = state.load();
   const morning = morningStatus(s);
-  const extras = [reviewStatus(s), emojiStatus(s)].filter((x): x is Post => x !== null);
+  const extras = [riddleStatus(s), reviewStatus(s), emojiStatus(s)].filter((x): x is Post => x !== null);
   return {
     text: [morning, ...extras].map(x => x.text).join("\n\n"),
     mentions: [morning, ...extras].flatMap(x => x.mentions),
   };
+}
+
+// Today's Bible Riddle, if one was posted today
+function riddleStatus(s: State): Post | null {
+  const r = s.riddle;
+  if (!r || dayKey(r.postedAt) !== dayKey(Date.now())) return null;
+  const head = `🧩 *Bible Riddle*: ${r.riddle}`;
+  if (r.winner) return { text: `${head}\n✅ Solved by ${tag(r.winner.id)}: it was *${riddleAnswer(r)}*`, mentions: [r.winner.id] };
+  if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was *${riddleAnswer(r)}*`, mentions: [] };
+  return { text: `${head}\n⏳ Open until ${when("closeRiddle")}: first right answer wins ${RIDDLE_POINTS} points!`, mentions: [] };
 }
 
 // Today's Emoji Bible, if one was posted today
@@ -650,10 +734,15 @@ export function backupState(): void {
 // Midday Review is "starting soon" until there are enough old verses to pick from
 const reviewNotYet = () => oldVerses(state.load()).length < REVIEW_MIN_POOL;
 const hasEmojiBible = () => Boolean(optionalEnv("STORIES_CSV_URL"));
+const hasRiddles = () => Boolean(optionalEnv("RIDDLES_CSV_URL"));
 
 // 10 minutes before each game: a heads-up. null when that game won't run today.
-export function reminder(game: "puzzle" | "review" | "emoji"): string | null {
+export function reminder(game: "puzzle" | "riddle" | "review" | "emoji"): string | null {
   if (game === "puzzle") return `⏰ Today's scripture drops at ${when("puzzle")}, in 10 minutes! Get ready 📖🔥`;
+  if (game === "riddle") {
+    if (!hasRiddles()) return null;
+    return `⏰ *Bible Riddle* at ${when("riddle")}, in 10 minutes! 🧩🤔`;
+  }
   if (game === "review") {
     if (reviewNotYet()) return null;
     return `⏰ *Midday Review* starts at ${when("review")}, in 10 minutes! 🔁🧠`;
@@ -671,6 +760,7 @@ export function schedule(): string {
     "🗓️ *Daily schedule*" + (zone ? ` (${zone})` : ""),
     "",
     `☀️ ${when("puzzle")}: Morning puzzle`,
+    ...(hasRiddles() ? [`🧩 ${when("riddle")}: Bible Riddle, until ${when("closeRiddle")}`] : []),
     `💡 ${when("hint")}: Extra hint (the speed bonus ends)`,
     `🔁 ${when("review")}: Midday Review, until ${when("closeReview")}` + (reviewSoon ? " _(starting soon)_" : ""),
     `🔦 ${when("bookHint")}: Last hint: the book`,
@@ -699,30 +789,26 @@ export function commands(): string {
 }
 
 export function help(): string {
-  const within = (min: number) => (min < 60 ? `${min} min` : `${min / 60} hr`);
-  const bonus = SPEED_BONUS.map(t => `+${t.bonus} within ${within(t.withinMin)}`).join(", ");
+  const reviewNote = reviewNotYet() ? " _(starting soon)_" : "";
   return [
     "📖 *Scripture Challenge* 🙌",
     "",
-    "☀️ Every morning I post a verse as an acronym, like *TLIMS; ISNW*.",
-    "💬 Reply with the reference (John 3:16), the decoded words, or both!",
+    `☀️ Every day at ${when("puzzle")} I post a verse as an acronym, like *TLIMS; ISNW*.`,
+    "💬 Reply with the reference, the decoded words, or both. First right answer wins!",
+    `💡 Hints at ${when("hint")} and ${when("bookHint")} · answer at ${when("reveal")}`,
     "",
     "🎯 *Points*",
-    `• Reference + decoded: ${ANSWER_POINTS.both}`,
-    `• Reference only: ${ANSWER_POINTS.reference}`,
-    `• Decoded only: ${ANSWER_POINTS.decoded}`,
-    `• ⚡ Speed bonus: ${bonus} (gone once a hint is out)`,
-    `• ✅ Next ${LATE_SPOTS} correct answers after the winner: +${LATE_POINTS} each`,
-    `• 👍 The start of the verse, or 5 words in a row from it: +${ON_TRACK_POINTS} (once), and the puzzle stays open`,
-    "• 🌙 Once the answer is revealed, the day is closed",
+    `• Reference + words: ${ANSWER_POINTS.both}  ·  Reference: ${ANSWER_POINTS.reference}  ·  Words: ${ANSWER_POINTS.decoded}`,
+    `• ⚡ Up to +${SPEED_BONUS[0].bonus} for speed, before the first hint`,
+    `• 👍 +${ON_TRACK_POINTS} for the start of the verse  ·  ✅ +${LATE_POINTS} for the next ${LATE_SPOTS} after the winner`,
     "",
-    `💡 Hints come at ${when("hint")} and ${when("bookHint")}, and the answer at ${when("reveal")}.`,
-    `😀 At ${when("emoji")} it's *Emoji Bible*: name the Bible story told in emoji for ${EMOJI_POINTS} points, until ${when("closeEmoji")}.`,
-    `🔁 At ${when("review")} there's a *Midday Review* of a verse from a few weeks back: ${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} points, open until ${when("closeReview")}.`,
-    "🗓️ Send !schedule to see the whole day.",
-    "🔥 Solve on days in a row to build a streak and earn badges 🎖️",
+    "🎮 *More games* (first right answer wins)",
+    ...(hasRiddles() ? [`• 🧩 ${when("riddle")} Bible Riddle: ${RIDDLE_POINTS} pts`] : []),
+    `• 🔁 ${when("review")} Midday Review: ${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} pts${reviewNote}`,
+    ...(hasEmojiBible() ? [`• 😀 ${when("emoji")} Emoji Bible: ${EMOJI_POINTS} pts`] : []),
     "",
-    "🤖 *Commands*",
-    ...COMMANDS,
+    "🔥 Solve days in a row to build a streak and earn badges.",
+    "",
+    "📋 !today · !schedule · !leaderboard · !week · !me · !streak · !commands",
   ].join("\n");
 }

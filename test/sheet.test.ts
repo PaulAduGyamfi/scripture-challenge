@@ -93,3 +93,38 @@ describe("loadStories", () => {
     await expect(loadStories()).rejects.toThrow(/Publish to web/);
   });
 });
+
+describe("loadRiddles", () => {
+  const RIDDLES = [
+    "Riddle,Answers,Reference",
+    "I built a boat on dry land. Who am I?,noah,Genesis 6-9",
+    'My strength was in my hair. Who am I?,"samson, the strong man",',
+    "A riddle with no answer,,",                       // skipped
+  ].join("\n");
+
+  it("reads the Riddles tab and splits the answers", async () => {
+    vi.stubEnv("RIDDLES_CSV_URL", "https://example.test/riddles.csv");
+    vi.stubGlobal("fetch", respond(RIDDLES));
+    const { loadRiddles } = await freshSheet();
+    expect(await loadRiddles()).toEqual([
+      { riddle: "I built a boat on dry land. Who am I?", answers: ["noah"], reference: "Genesis 6-9" },
+      { riddle: "My strength was in my hair. Who am I?", answers: ["samson", "the strong man"], reference: undefined },
+    ]);
+    expect(console.warn).toHaveBeenCalledOnce();
+  });
+
+  it("returns nothing when there's no Riddles tab", async () => {
+    vi.stubEnv("RIDDLES_CSV_URL", "");
+    const { loadRiddles } = await freshSheet();
+    expect(await loadRiddles()).toEqual([]);
+  });
+
+  it("uses the last good copy when Google Sheets is down", async () => {
+    vi.stubEnv("RIDDLES_CSV_URL", "https://example.test/riddles.csv");
+    vi.stubGlobal("fetch", respond(RIDDLES));
+    const { loadRiddles } = await freshSheet();
+    await loadRiddles();
+    vi.stubGlobal("fetch", respond("", 503));
+    expect(await loadRiddles()).toHaveLength(2);
+  });
+});

@@ -2,7 +2,7 @@ import Papa from "papaparse";
 import { z } from "zod";
 import { env, optionalEnv } from "./config";
 import { findBook } from "./game";
-import type { Scripture, Story } from "./types";
+import type { Riddle, Scripture, Story } from "./types";
 
 // What one row of the Google Sheet must look like. Empty cells arrive as "".
 const Row = z.object({
@@ -104,6 +104,45 @@ export async function loadStories(): Promise<Story[]> {
     if (lastGoodStories.length > 0) {
       console.error("Couldn't refresh the Stories tab, using the last good copy:", err);
       return lastGoodStories;
+    }
+    throw err;
+  }
+}
+
+// ---------- Riddles tab, for the Bible Riddle ----------
+const RiddleRow = z.object({
+  Riddle: z.string().trim().min(1, "Riddle is empty"),
+  Answers: z.string().trim().min(1, "Answers is empty"),
+  Reference: z.string().trim().optional(),
+});
+
+let lastGoodRiddles: Riddle[] = [];
+
+// Returns [] when RIDDLES_CSV_URL isn't set, so the game simply doesn't run
+export async function loadRiddles(): Promise<Riddle[]> {
+  const url = optionalEnv("RIDDLES_CSV_URL");
+  if (!url) return [];
+  try {
+    const good: Riddle[] = [];
+    (await fetchCsv(url)).forEach((raw, i) => {
+      const r = RiddleRow.safeParse(raw);
+      if (!r.success) {
+        const problems = r.error.issues.map(x => `${x.path.map(String).join(".")}: ${x.message}`);
+        return console.warn(`Riddles row ${i + 2} skipped: ${problems.join("; ")}`);
+      }
+      good.push({
+        riddle: r.data.Riddle,
+        answers: r.data.Answers.split(",").map(a => a.trim()).filter(Boolean),
+        reference: r.data.Reference || undefined,
+      });
+    });
+    if (good.length === 0) throw new Error("The Riddles tab has no usable rows");
+    lastGoodRiddles = good;
+    return good;
+  } catch (err) {
+    if (lastGoodRiddles.length > 0) {
+      console.error("Couldn't refresh the Riddles tab, using the last good copy:", err);
+      return lastGoodRiddles;
     }
     throw err;
   }

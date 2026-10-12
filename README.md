@@ -18,6 +18,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | Time | What happens |
 |---|---|
 | 7:00 AM | Today's verse is posted as an acronym |
+| 10:00 AM | 🧩 Bible Riddle, open until 12 PM (answer revealed if nobody got it) |
 | 12:00 PM | Extra hint, written by AI (the speed bonus ends) |
 | 2:00 PM | 🔁 Midday Review: a verse from 2+ weeks ago, open until 5 PM |
 | 5:00 PM | Midday Review closes (answer revealed if nobody got it) |
@@ -38,6 +39,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | The start of the verse (half the clue or more) or 5 words in a row from it, before anyone wins | +1, once, and the puzzle stays open |
 | One of the next 3 correct answers after the winner | +1 |
 | Midday Review (first correct only) | 5 / 3 / 2 for both / reference / decoded |
+| Bible Riddle (first correct only) | 3 |
 | Emoji Bible (first correct only) | 2 |
 
 - **Forgiving answers:** the bot understands "jn 3 16", "first john 4:8", "Song of Solomon 2:1" and similar. Messier guesses like "john three sixteen" are read by AI.
@@ -59,7 +61,7 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 | `!streak` | Your current streak |
 | `!commands` | Just the list of commands |
 
-The admin can also send `!new`, `!grouphint`, `!reveal`, `!review`, `!closereview`, `!emoji` and `!closeemoji` to run a step early, which is handy for testing.
+The admin can also send `!new`, `!grouphint`, `!reveal`, `!review`, `!closereview`, `!riddle`, `!closeriddle`, `!emoji` and `!closeemoji` to run a step early, which is handy for testing.
 
 **About the Midday Review:** it reuses verses the group had at least 14 puzzles ago, so it never uses up your sheet faster. It's also good for memorising Scripture. It switches on by itself once there are 10 old verses to choose from, about 3–4 weeks after you start.
 
@@ -116,6 +118,21 @@ Add a second tab called **Stories** with these headers:
 
 Publish this tab on its own (**File → Share → Publish to web**, choose **Stories** and **CSV**). Each tab gets its own link, and that link goes in `STORIES_CSV_URL`. Without it, Emoji Bible simply doesn't run.
 
+#### Optional: the Riddles tab, for the Bible Riddle
+
+Add another tab called **Riddles** with these headers:
+
+| Riddle | Answers | Reference |
+|---|---|---|
+| I built a boat on dry land and waited for rain. Who am I? | noah | Genesis 6–9 |
+| My strength was in my hair. Who am I? | samson | Judges 16 |
+
+- **Riddle** (required): posted at 10 AM exactly as written.
+- **Answers** (required): words that count as correct, separated by commas. The first one is shown as the answer. Small typos are fine, and the AI also accepts the right answer in other words ("the man who built the ark").
+- **Reference**: shown with the answer.
+
+Publish it the same way as the Stories tab, and put its link in `RIDDLES_CSV_URL`. Without it, the Bible Riddle simply doesn't run.
+
 ### 2. Get the code
 
 On your server:
@@ -145,6 +162,7 @@ nano .env
 | `ANTHROPIC_API_KEY` | Your Claude API key |
 | `SHEET_CSV_URL` | The CSV link from step 1 |
 | `STORIES_CSV_URL` | Optional: the Stories tab's CSV link, for Emoji Bible |
+| `RIDDLES_CSV_URL` | Optional: the Riddles tab's CSV link, for the Bible Riddle |
 | `GROUP_ID` | Leave empty for now (step 4) |
 | `ADMIN_ID` | Leave empty for now (step 4) |
 | `TZ_NAME` | Your church's time zone, like `America/Chicago`, `Europe/London` or `Africa/Accra` ([list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)). All posting times use this zone. |

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { Scripture, Story } from "../src/types";
+import type { Riddle, Scripture, Story } from "../src/types";
 
 // No real AI or Google Sheet in tests
 const fakes = vi.hoisted(() => {
@@ -22,11 +22,15 @@ const fakes = vi.hoisted(() => {
   }));
   const jonah: Story = { story: "Jonah and the big fish", answers: ["jonah"], reference: "Jonah 1-2" };
   const goliath: Story = { story: "David and Goliath", answers: ["goliath", "david and goliath"], emoji: "🧒🪨🗡️🗿" };
-  return { john, psalm, old, jonah, goliath, verses: [john] as Scripture[], stories: [] as Story[] };
+  const noah: Riddle = { riddle: "I built a boat on dry land and waited for rain. Who am I?", answers: ["noah"], reference: "Genesis 6-9" };
+  const samson: Riddle = { riddle: "My strength was in my hair. Who am I?", answers: ["samson"] };
+  return { john, psalm, old, jonah, goliath, noah, samson, verses: [john] as Scripture[], stories: [] as Story[],
+    riddles: [] as Riddle[] };
 });
 vi.mock("../src/sheet", () => ({
   loadScriptures: vi.fn(async () => fakes.verses),
   loadStories: vi.fn(async () => fakes.stories),
+  loadRiddles: vi.fn(async () => fakes.riddles),
 }));
 vi.mock("../src/ai", () => ({
   aiReadGuess: vi.fn(async () => null),
@@ -34,6 +38,7 @@ vi.mock("../src/ai", () => ({
   celebrate: vi.fn(async (name: string) => `Haaaa! ${name} is sozzled!`),
   makeEmoji: vi.fn(async () => "🐋🙏🌊"),
   judgeStoryGuess: vi.fn(async () => "not_a_guess"),
+  judgeRiddleGuess: vi.fn(async () => "not_a_guess"),
 }));
 
 import * as core from "../src/core";
@@ -58,6 +63,7 @@ beforeEach(async () => {
   vi.setSystemTime(START);
   fakes.verses = [fakes.john];
   fakes.stories = [];
+  fakes.riddles = [];
   await core.newPuzzle();
   postedAt = START.getTime();
 });
@@ -460,11 +466,22 @@ describe("replyTo", () => {
 describe("help and commands", () => {
   const PLAYER_COMMANDS = ["!today", "!schedule", "!leaderboard", "!week", "!me", "!streak", "!commands", "!help"];
 
-  it("!help lists the points and every command", () => {
+  it("!help lists the points and every other command", () => {
     const text = core.help();
-    expect(text).toContain("+5 within 30 min, +3 within 2 hr, +1 within 4 hr");
-    for (const cmd of PLAYER_COMMANDS) expect(text).toContain(cmd);
+    expect(text).toContain("Up to +5 for speed");
+    for (const cmd of PLAYER_COMMANDS.filter(c => c !== "!help")) expect(text).toContain(cmd);
     expect(text).not.toContain("!new");
+  });
+
+  it("!help only lists the extra games that are switched on", () => {
+    vi.stubEnv("RIDDLES_CSV_URL", "");
+    vi.stubEnv("STORIES_CSV_URL", "");
+    expect(core.help()).not.toMatch(/Bible Riddle|Emoji Bible/);
+    vi.stubEnv("RIDDLES_CSV_URL", "https://example.test/riddles.csv");
+    vi.stubEnv("STORIES_CSV_URL", "https://example.test/stories.csv");
+    expect(core.help()).toContain("• 🧩 10 AM Bible Riddle: 3 pts");
+    expect(core.help()).toContain("• 😀 7 PM Emoji Bible: 2 pts");
+    vi.unstubAllEnvs();
   });
 
   it("!commands lists just the commands", () => {
@@ -486,7 +503,7 @@ describe("big leaderboards", () => {
     for (let n = 1; n <= 20; n++) {
       s.scores[`${n}@c.us`] = {
         name: `P${n}`, points: 210 - n * 10, wins: 1, fastestMin: 5, season: 2026, week,
-        weekPoints: 210 - n * 10, streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0,
+        weekPoints: 210 - n * 10, streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0, riddleWins: 0,
       };
     }
     state.save(s);
@@ -783,11 +800,98 @@ describe("Emoji Bible", () => {
     const s = state.load();
     s.scores[AMA] = {
       name: "Ama", points: 18, wins: 0, fastestMin: null, season: 2026, week: "x", weekPoints: 0,
-      streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 9,
+      streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 9, riddleWins: 0,
     };
     state.save(s);
     await postGame();
     expect(textOf(await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN))).toContain("🎖️ New badge: 😀 Emoji Master!");
+  });
+});
+
+describe("Bible Riddle", () => {
+  const TEN_AM = START.getTime() + 3 * 60 * MIN;
+  async function postRiddle(riddles: Riddle[] = [fakes.noah]) {
+    fakes.riddles = riddles;
+    vi.setSystemTime(TEN_AM);
+    return core.newRiddle();
+  }
+
+  it("does nothing without a Riddles tab", async () => {
+    expect(await postRiddle([])).toBeNull();
+    expect(state.load().riddle).toBeNull();
+  });
+
+  it("posts the riddle without giving the answer away", async () => {
+    const text = await postRiddle();
+    expect(text).toContain("🧩 *Bible Riddle*");
+    expect(text).toContain("I built a boat on dry land");
+    expect(text).toContain("3 points! Closes at 12 PM");
+    expect(text?.toLowerCase()).not.toContain("noah");
+  });
+
+  it("gives the first right answer 3 points", async () => {
+    await postRiddle();
+    const reply = await core.handleMessage(AMA, "Ama", "Noah!", TEN_AM + 4 * MIN);
+    expect(reply).toMatchObject({ kind: "win", mentions: [AMA] });
+    expect(textOf(reply)).toContain("@111 solved the riddle in ⏱️ 4 min!");
+    expect(textOf(reply)).toContain("It's *Noah* (📖 Genesis 6-9)");
+    expect(state.load().scores[AMA]).toMatchObject({ points: 3, riddleWins: 1, wins: 0 });
+    expect(state.load().riddle?.closed).toBe(true);
+  });
+
+  it("claps for late right answers and leaves the morning puzzle alone", async () => {
+    await postRiddle();
+    await core.handleMessage(AMA, "Ama", "noah", TEN_AM + MIN);
+    expect(await core.handleMessage(KOFI, "Kofi", "Noah", TEN_AM + 2 * MIN)).toEqual({ kind: "react", emoji: "👏" });
+    expect(textOf(await core.handleMessage(ESI, "Esi", "John 3:16", TEN_AM + 3 * MIN))).toContain("Esi");
+    expect(state.load().winner?.id).toBe(ESI);
+  });
+
+  it("lets the AI accept the answer in other words, and 🤔 a different answer", async () => {
+    await postRiddle();
+    vi.mocked(ai.judgeRiddleGuess).mockResolvedValueOnce("wrong");
+    expect(await core.handleMessage(KOFI, "Kofi", "moses", TEN_AM + MIN)).toEqual({ kind: "react", emoji: "🤔" });
+    vi.mocked(ai.judgeRiddleGuess).mockResolvedValueOnce("correct");
+    expect((await core.handleMessage(AMA, "Ama", "the man who built the ark", TEN_AM + 2 * MIN))?.kind).toBe("win");
+    expect(ai.judgeRiddleGuess).toHaveBeenCalledWith("the man who built the ark", expect.objectContaining({ answers: ["noah"] }));
+  });
+
+  it("doesn't ask the AI about reference guesses meant for the morning puzzle", async () => {
+    await postRiddle();
+    await core.handleMessage(AMA, "Ama", "John 3:17", TEN_AM + MIN);
+    expect(ai.judgeRiddleGuess).not.toHaveBeenCalled();
+  });
+
+  it("reveals the answer at 12 PM if nobody got it, then ignores answers", async () => {
+    await postRiddle();
+    expect(await core.closeRiddle()).toContain("The answer was *Noah* (📖 Genesis 6-9)");
+    expect(await core.closeRiddle()).toBeNull();
+    expect(await core.handleMessage(AMA, "Ama", "noah", TEN_AM + 130 * MIN)).toBeNull();
+  });
+
+  it("doesn't repeat a riddle until every riddle has been used", async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 2; i++) { await postRiddle([fakes.noah, fakes.samson]); seen.add(state.load().riddle?.riddle ?? ""); }
+    expect(seen.size).toBe(2);
+    await postRiddle([fakes.noah, fakes.samson]);       // both used: starts over
+    expect(state.load().riddlesUsed).toHaveLength(1);
+  });
+
+  it("shows in !today", async () => {
+    await postRiddle();
+    expect(core.todayPuzzle().text).toContain("🧩 *Bible Riddle*: I built a boat on dry land and waited for rain. Who am I?\n⏳ Open until 12 PM");
+    await core.handleMessage(AMA, "Ama", "noah", TEN_AM + MIN);
+    expect(core.todayPuzzle().text).toContain("✅ Solved by @111: it was *Noah*");
+  });
+
+  it("is in !schedule and gets a reminder only when there's a Riddles tab", () => {
+    vi.stubEnv("RIDDLES_CSV_URL", "");
+    expect(core.schedule()).not.toContain("Bible Riddle");
+    expect(core.reminder("riddle")).toBeNull();
+    vi.stubEnv("RIDDLES_CSV_URL", "https://example.test/riddles.csv");
+    expect(core.schedule()).toContain("🧩 10 AM: Bible Riddle, until 12 PM");
+    expect(core.reminder("riddle")).toContain("10 AM, in 10 minutes");
+    vi.unstubAllEnvs();
   });
 });
 
@@ -845,6 +949,6 @@ describe("!schedule", () => {
   });
 
   it("uses the same times in !help", () => {
-    expect(core.help()).toContain("Hints come at 12 PM and 6 PM, and the answer at 9 PM");
+    expect(core.help()).toContain("Hints at 12 PM and 6 PM · answer at 9 PM");
   });
 });

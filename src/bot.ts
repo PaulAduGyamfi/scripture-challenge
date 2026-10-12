@@ -172,6 +172,8 @@ async function onMessage(msg: Message): Promise<void> {
     if (body === "!reveal") return post(await core.reveal());
     if (body === "!review") return post(await core.newReview());
     if (body === "!closereview") return post(await core.closeReview());
+    if (body === "!riddle") return post(await core.newRiddle());
+    if (body === "!closeriddle") return post(await core.closeRiddle());
     if (body === "!emoji") return post(await core.newEmojiGame());
     if (body === "!closeemoji") return post(await core.closeEmojiGame());
   }
@@ -224,10 +226,13 @@ const at = (time: string, job: () => Promise<void>) =>
 
 const { SCHEDULE: S } = core;
 at(S.puzzleSoon,  async () => post(core.reminder("puzzle")));      // 10-minute heads-ups
+at(S.riddleSoon,  async () => post(core.reminder("riddle")));
 at(S.reviewSoon,  async () => post(core.reminder("review")));
 at(S.emojiSoon,   async () => post(core.reminder("emoji")));
 at(S.backup,      async () => { core.backupState(); });
 at(S.puzzle,      async () => post(await core.newPuzzle()));
+at(S.riddle,      async () => post(await core.newRiddle()));       // Bible Riddle
+at(S.closeRiddle, async () => post(await core.closeRiddle()));
 at(S.hint,        async () => post(await core.hint()));            // AI hint
 at(S.review,      async () => post(await core.newReview()));       // Midday Review
 at(S.closeReview, async () => post(await core.closeReview()));
