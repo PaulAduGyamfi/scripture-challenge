@@ -101,6 +101,14 @@ describe("judgeStoryGuess", () => {
     expect(call.messages[0].content).toBe("the man in the whale");
   });
 
+  it("shows the AI the emoji and tells it describing them isn't enough", async () => {
+    claudeSays("wrong");
+    await judgeStoryGuess("a man a big fish and the sea", { ...jonah, emoji: "🐋🙏🌊" });
+    const system = create.mock.calls[0]?.[0].system;
+    expect(system).toContain("shown as 🐋🙏🌊");
+    expect(system).toContain("only describes what the emoji show");
+  });
+
   it.each(["Correct! The answer is Jonah.", "yes", "I think so"])(
     "never gives points for anything but a plain 'correct': %j", async reply => {
       claudeSays(reply);

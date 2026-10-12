@@ -272,8 +272,8 @@ export function handleMessage(senderId: string, senderName: string, text: string
     for (const g of [riddle, game]) {
       if (g?.closed && namesStory(text, g.answers)) return g.winner ? { kind: "react", emoji: "👏" } : null;
     }
-    // Not one of the listed answers: while a game is open, the AI judges the right idea in other
-    // words ("the man swallowed by a whale"). Reference guesses were for the other puzzles, so skip those.
+    // Not one of the listed answers: while a game is open, the AI judges it ("Jonah in the belly of
+    // the fish" counts; just describing the emoji doesn't). Reference guesses were for the other puzzles, so skip those.
     const judgeable = !guess && /[a-z]{3}/i.test(text);
     let judgedWrong = false;
     if (riddle && !riddle.closed && judgeable) {
@@ -566,7 +566,7 @@ export async function newEmojiGame(): Promise<string | null> {
     s.storiesUsed = [...(startOver ? [] : s.storiesUsed), chosen.story];
     state.save(s);
     return `😀 *Emoji Bible* 🎬\nWhich Bible story is this?\n\n${emoji}\n\n` +
-      `🎯 Name it, or describe it in your own words! First right answer wins ${EMOJI_POINTS} points. ` +
+      `🎯 Name the story (who or where, not what the emoji show)! First right answer wins ${EMOJI_POINTS} points. ` +
       `Closes at ${when("closeEmoji")} ⏳`;
   });
 }

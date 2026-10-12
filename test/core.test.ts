@@ -758,12 +758,13 @@ describe("Emoji Bible", () => {
     expect(state.load().storiesUsed).toHaveLength(1);
   });
 
-  it("lets the AI accept the right idea in other words", async () => {
+  it("lets the AI accept the story named in other words", async () => {
     await postGame();
     vi.mocked(ai.judgeStoryGuess).mockResolvedValueOnce("correct");
-    const reply = await core.handleMessage(AMA, "Ama", "the man swallowed by a whale!", SEVEN_PM + MIN);
+    const reply = await core.handleMessage(AMA, "Ama", "the prophet in the belly of the fish!", SEVEN_PM + MIN);
     expect(reply?.kind).toBe("win");
-    expect(ai.judgeStoryGuess).toHaveBeenCalledWith("the man swallowed by a whale!", expect.objectContaining({ story: "Jonah and the big fish" }));
+    expect(ai.judgeStoryGuess).toHaveBeenCalledWith("the prophet in the belly of the fish!",
+      expect.objectContaining({ story: "Jonah and the big fish", emoji: "🐋🙏🌊" }));
     expect(state.load().scores[AMA]?.points).toBe(2);
   });
 
