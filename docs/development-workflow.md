@@ -176,7 +176,7 @@ checklist (C1–C6), like a human reviewer.
 - Not on draft PRs, which get reviewed when they're marked ready. Not on PRs from forks, because
   GitHub doesn't give fork runs the secret.
 - On Dependabot's PRs too, if the key is also a Dependabot secret (see setup).
-- At most 10 turns and 15 minutes per run. A newer run on the same PR cancels an older one.
+- At most 25 turns and 15 minutes per run. A newer run on the same PR cancels an older one.
 - **Not on a PR that changes `claude-review.yml` itself.** The action only runs when the workflow file is
   identical to the one on `main`, so a PR can't change the review (or leak its key) and have that
   version run. The run shows as successful with a "Workflow validation failed" warning. That's
