@@ -1,5 +1,14 @@
-import { makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory,
-         startsVerse, quotesVerse } from "./game";
+import {
+  makeAcronym,
+  parseReference,
+  mightBeReference,
+  isCorrect,
+  formatRef,
+  matchesDecode,
+  namesStory,
+  startsVerse,
+  quotesVerse,
+} from "./game";
 import { aiReadGuess, makeHint, celebrate, makeEmoji, judgeStoryGuess, judgeRiddleGuess } from "./ai";
 import { loadScriptures, loadStories, loadRiddles } from "./sheet";
 import { optionalEnv } from "./config";
@@ -10,13 +19,13 @@ import type { AnswerType, Scripture } from "./types";
 // A message that @mentions people: bot.ts passes `mentions` to WhatsApp so the tags ping
 export interface Post {
   text: string;
-  mentions: string[];     // WhatsApp IDs of everyone tagged in text
+  mentions: string[]; // WhatsApp IDs of everyone tagged in text
 }
 
 // What handleMessage hands back to bot.ts
 export type Reply =
-  | (Post & { kind: "win" | "late" | "onTrack" })   // late: correct after the winner; onTrack: part of it
-  | { kind: "react"; emoji: string };   // no message, just an emoji on theirs (🤔 wrong, 👏 right but late)
+  | (Post & { kind: "win" | "late" | "onTrack" }) // late: correct after the winner; onTrack: part of it
+  | { kind: "react"; emoji: string }; // no message, just an emoji on theirs (🤔 wrong, 👏 right but late)
 
 // "123456@c.us" -> "@123456", which WhatsApp shows as the person's name
 const tag = (id: string) => `@${id.split("@")[0]}`;
@@ -42,45 +51,48 @@ function inOrder<T>(fn: () => Promise<T>): Promise<T> {
 // ---------- Points ----------
 const ANSWER_POINTS: Record<AnswerType, number> = { both: 10, reference: 6, decoded: 3 };
 const ANSWER_LABEL: Record<AnswerType, string> = {
-  both: "Reference + decoded", reference: "Reference", decoded: "Decoded",
+  both: "Reference + decoded",
+  reference: "Reference",
+  decoded: "Decoded",
 };
-const SPEED_BONUS = [                         // minutes after the puzzle was posted
+const SPEED_BONUS = [
+  // minutes after the puzzle was posted
   { withinMin: 30, bonus: 5 },
   { withinMin: 120, bonus: 3 },
   { withinMin: 240, bonus: 1 },
 ] as const;
-const LATE_POINTS = 1;                        // for each of the next correct answers after the winner
-const LATE_SPOTS = 3;                         // how many of them
-const ON_TRACK_POINTS = 1;                    // the start of the verse or a quote from it: once, round stays open
+const LATE_POINTS = 1; // for each of the next correct answers after the winner
+const LATE_SPOTS = 3; // how many of them
+const ON_TRACK_POINTS = 1; // the start of the verse or a quote from it: once, round stays open
 
 // Midday Review: a verse from 2+ weeks ago, worth less, no speed bonus or bonus spots
 const REVIEW_POINTS: Record<AnswerType, number> = { both: 5, reference: 3, decoded: 2 };
-const REVIEW_MIN_AGE = 14;                    // only verses at least this many puzzles old
-const REVIEW_MIN_POOL = 10;                   // don't start until there are this many to choose from
+const REVIEW_MIN_AGE = 14; // only verses at least this many puzzles old
+const REVIEW_MIN_POOL = 10; // don't start until there are this many to choose from
 
-const EMOJI_POINTS = 2;                       // Emoji Bible, first correct answer only
-const RIDDLE_POINTS = 3;                      // Bible Riddle, first correct answer only
+const EMOJI_POINTS = 2; // Emoji Bible, first correct answer only
+const RIDDLE_POINTS = 3; // Bible Riddle, first correct answer only
 
 // ---------- Schedule ----------
 // Every scheduled post, in one place (cron format: minute hour day month weekday).
 // bot.ts runs these; !schedule, !help and the bot's messages read their times from here.
 export const SCHEDULE = {
-  puzzleSoon:   "50 6 * * *",                // the "... in 10 minutes" reminders
-  backup:       "55 6 * * *",
-  puzzle:       "0 7 * * *",
-  riddleSoon:   "50 9 * * *",
-  riddle:       "0 10 * * *",
-  closeRiddle:  "0 12 * * *",
-  hint:         "0 12 * * *",
-  reviewSoon:   "50 13 * * *",
-  review:       "0 14 * * *",
-  closeReview:  "0 17 * * *",
-  bookHint:     "0 18 * * *",
-  emojiSoon:    "50 18 * * *",
-  emoji:        "0 19 * * *",
-  closeEmoji:   "0 20 * * *",
-  reveal:       "0 21 * * *",
-  weeklyWrap:   "5 20 * * 0",
+  puzzleSoon: "50 6 * * *", // the "... in 10 minutes" reminders
+  backup: "55 6 * * *",
+  puzzle: "0 7 * * *",
+  riddleSoon: "50 9 * * *",
+  riddle: "0 10 * * *",
+  closeRiddle: "0 12 * * *",
+  hint: "0 12 * * *",
+  reviewSoon: "50 13 * * *",
+  review: "0 14 * * *",
+  closeReview: "0 17 * * *",
+  bookHint: "0 18 * * *",
+  emojiSoon: "50 18 * * *",
+  emoji: "0 19 * * *",
+  closeEmoji: "0 20 * * *",
+  reveal: "0 21 * * *",
+  weeklyWrap: "5 20 * * 0",
   seasonFinale: "0 20 31 12 *",
 } as const;
 
@@ -99,14 +111,16 @@ function scoreAnswer(type: AnswerType, minutes: number, hintsGiven: number) {
   return { base, bonus, points: base + bonus };
 }
 
-function weekKey(ms: number): string {        // identifies the Monday-to-Sunday week
+function weekKey(ms: number): string {
+  // identifies the Monday-to-Sunday week
   const d = new Date(ms);
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
 
-function dayKey(ms: number): string {         // "2026-03-04" in local time
+function dayKey(ms: number): string {
+  // "2026-03-04" in local time
   const d = new Date(ms);
   return [d.getFullYear(), d.getMonth() + 1, d.getDate()].map(n => String(n).padStart(2, "0")).join("-");
 }
@@ -124,13 +138,20 @@ function fullRef(v: Scripture): string {
 }
 
 // Backup cheers in case the AI is unavailable
-const CHEERS = ["🎉 Eeeeiiiii.....!!! 🙌", "🔥 Haaaa! We have a winner! 🏆", "😲 Woooooow! Somebody has been eating the Word! 📖🍽️",
-  "🙌 Eeeeiii! This one is sozzled in the Word!! 📖🔥"];
+const CHEERS = [
+  "🎉 Eeeeiiiii.....!!! 🙌",
+  "🔥 Haaaa! We have a winner! 🏆",
+  "😲 Woooooow! Somebody has been eating the Word! 📖🍽️",
+  "🙌 Eeeeiii! This one is sozzled in the Word!! 📖🔥",
+];
 const pick = <T>(items: readonly T[]): T | undefined => items[Math.floor(Math.random() * items.length)];
 
 async function cheer(name: string, ref: string): Promise<string> {
-  try { return await celebrate(name, ref); }
-  catch { return pick(CHEERS) ?? "🎉 Well done!"; }
+  try {
+    return await celebrate(name, ref);
+  } catch {
+    return pick(CHEERS) ?? "🎉 Well done!";
+  }
 }
 
 // ---------- Streaks and badges ----------
@@ -181,10 +202,21 @@ function getPlayer(s: State, id: string, name: string, now: number): Player {
   const season = new Date(now).getFullYear();
   const week = weekKey(now);
   const p: Player = s.scores[id] ?? {
-    name, points: 0, wins: 0, fastestMin: null, season, week, weekPoints: 0,
-    streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0, riddleWins: 0,
+    name,
+    points: 0,
+    wins: 0,
+    fastestMin: null,
+    season,
+    week,
+    weekPoints: 0,
+    streak: 0,
+    bestStreak: 0,
+    lastSolvedDay: null,
+    emojiWins: 0,
+    riddleWins: 0,
   };
-  if (p.season !== season) Object.assign(p, { season, points: 0, wins: 0, fastestMin: null, emojiWins: 0, riddleWins: 0 });
+  if (p.season !== season)
+    Object.assign(p, { season, points: 0, wins: 0, fastestMin: null, emojiWins: 0, riddleWins: 0 });
   if (p.week !== week) Object.assign(p, { week, weekPoints: 0 });
   p.name = name;
   s.scores[id] = p;
@@ -204,7 +236,7 @@ function ranked(s: State, kind: "season" | "week", now = Date.now()): Ranked[] {
 
 // ---------- Game ----------
 export async function newPuzzle(): Promise<string> {
-  const all = await loadScriptures();               // download outside the queue: answers keep flowing
+  const all = await loadScriptures(); // download outside the queue: answers keep flowing
   return inOrder(async () => pickPuzzle(all));
 }
 
@@ -213,38 +245,55 @@ const puzzleOf = (v: Scripture) => v.acronym || makeAcronym(v.clue);
 function pickPuzzle(all: Scripture[]): string {
   const s = state.load();
   let pool = all.filter(v => !s.used.includes(formatRef(v)));
-  if (pool.length === 0) { s.used = []; pool = all; } // every verse used: start over
+  if (pool.length === 0) {
+    s.used = [];
+    pool = all;
+  } // every verse used: start over
   const chosen = pick(pool);
   if (!chosen) throw new Error("No scriptures available");
 
   Object.assign(s, {
-    today: { ...chosen, postedAt: Date.now() }, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], onTrack: [],
+    today: { ...chosen, postedAt: Date.now() },
+    winner: null,
+    hintsGiven: 0,
+    revealed: false,
+    lateSolvers: [],
+    hints: [],
+    onTrack: [],
   });
   s.used.push(formatRef(chosen));
-  if (s.history.length === 0) s.history = s.used.slice(0, -1);   // first run: start from what's been used
+  if (s.history.length === 0) s.history = s.used.slice(0, -1); // first run: start from what's been used
   s.history.push(formatRef(chosen));
-  if (s.review) s.review.closed = true;                          // in case its closing time was missed
+  if (s.review) s.review.closed = true; // in case its closing time was missed
   state.save(s);
 
   const hintLine = chosen.hint ? `\n\n💡 Hint: ${chosen.hint}` : "";
-  return `☀️ Good morning! Today's scripture:\n\n📜 *${puzzleOf(chosen)}*${hintLine}\n\n` +
-    `💬 Reply with the reference, the decoded words, or both for the most points! 🎯\n🏆 First correct answer wins! ⏱️ Go go go! 🚀`;
+  return (
+    `☀️ Good morning! Today's scripture:\n\n📜 *${puzzleOf(chosen)}*${hintLine}\n\n` +
+    `💬 Reply with the reference, the decoded words, or both for the most points! 🎯\n🏆 First correct answer wins! ⏱️ Go go go! 🚀`
+  );
 }
 
 // sentAt = when the person sent the message, in milliseconds
-export function handleMessage(senderId: string, senderName: string, text: string,
-                              sentAt = Date.now()): Promise<Reply | null> {
+export function handleMessage(
+  senderId: string,
+  senderName: string,
+  text: string,
+  sentAt = Date.now()
+): Promise<Reply | null> {
   return inOrder(async () => {
     const s = state.load();
-    const today = s.today && !s.revealed ? s.today : null;    // after the reveal, nothing left to win
+    const today = s.today && !s.revealed ? s.today : null; // after the reveal, nothing left to win
     const review = s.review && !s.review.closed ? s.review : null;
     const game = s.emojiGame && dayKey(s.emojiGame.postedAt) === dayKey(sentAt) ? s.emojiGame : null;
     const riddle = s.riddle && dayKey(s.riddle.postedAt) === dayKey(sentAt) ? s.riddle : null;
     if (!today && !review && !game && !riddle) return null;
 
     // The AI only looks at messages that might be a reference, so "see you at 5pm" costs nothing
-    const guess = !today && !review ? null
-      : parseReference(text) ?? (mightBeReference(text) ? await aiReadGuess(text) : null);
+    const guess =
+      !today && !review
+        ? null
+        : (parseReference(text) ?? (mightBeReference(text) ? await aiReadGuess(text) : null));
     const matches = (v: Scripture) => ({ ref: isCorrect(guess, v), words: matchesDecode(text, v.clue) });
 
     // The morning puzzle comes first; the review only gets answers that are clearly for it
@@ -262,13 +311,15 @@ export function handleMessage(senderId: string, senderName: string, text: string
     const forReview = lastReview ? matches(lastReview.verse) : { ref: false, words: false };
     if (lastReview && (forReview.ref || forReview.words)) {
       if (!lastReview.closed) return winReview(s, lastReview, forReview, senderId, senderName, sentAt);
-      return lastReview.winner ? { kind: "react", emoji: "👏" } : null;   // after the reveal: nothing
+      return lastReview.winner ? { kind: "react", emoji: "👏" } : null; // after the reveal: nothing
     }
 
     // Bible Riddle and Emoji Bible answers are names, so they're checked last: open games first,
     // then today's closed ones, so a late right answer gets 👏 (or nothing, once revealed)
-    if (riddle && !riddle.closed && namesStory(text, riddle.answers)) return winRiddle(s, riddle, senderId, senderName, sentAt);
-    if (game && !game.closed && namesStory(text, game.answers)) return winEmoji(s, game, senderId, senderName, sentAt);
+    if (riddle && !riddle.closed && namesStory(text, riddle.answers))
+      return winRiddle(s, riddle, senderId, senderName, sentAt);
+    if (game && !game.closed && namesStory(text, game.answers))
+      return winEmoji(s, game, senderId, senderName, sentAt);
     for (const g of [riddle, game]) {
       if (g?.closed && namesStory(text, g.answers)) return g.winner ? { kind: "react", emoji: "👏" } : null;
     }
@@ -280,7 +331,9 @@ export function handleMessage(senderId: string, senderName: string, text: string
       const verdict = await judgeRiddleGuess(text, riddle);
       if (verdict === "correct") return winRiddle(s, riddle, senderId, senderName, sentAt);
       if (verdict === "wrong") {
-        console.log(`Bible Riddle answer judged wrong for "${riddle.answers[0] ?? ""}": ${text.slice(0, 100)}`);
+        console.log(
+          `Bible Riddle answer judged wrong for "${riddle.answers[0] ?? ""}": ${text.slice(0, 100)}`
+        );
         judgedWrong = true;
       }
     }
@@ -295,7 +348,7 @@ export function handleMessage(senderId: string, senderName: string, text: string
     if (judgedWrong) return { kind: "react", emoji: "🤔" };
 
     const somethingOpen = (today && !s.winner) || review;
-    return guess && somethingOpen ? { kind: "react", emoji: "🤔" } : null;   // no spam, just a reaction
+    return guess && somethingOpen ? { kind: "react", emoji: "🤔" } : null; // no spam, just a reaction
   });
 }
 
@@ -303,8 +356,14 @@ type Matched = { ref: boolean; words: boolean };
 const answerType = (m: Matched): AnswerType => (m.ref && m.words ? "both" : m.ref ? "reference" : "decoded");
 
 // First correct answer to the morning puzzle
-async function winToday(s: State, today: NonNullable<State["today"]>, m: Matched,
-                        senderId: string, senderName: string, sentAt: number): Promise<Reply> {
+async function winToday(
+  s: State,
+  today: NonNullable<State["today"]>,
+  m: Matched,
+  senderId: string,
+  senderName: string,
+  sentAt: number
+): Promise<Reply> {
   const type = answerType(m);
   const minutes = Math.max(0, (sentAt - today.postedAt) / 60_000);
   const { base, bonus, points } = scoreAnswer(type, minutes, s.hintsGiven);
@@ -323,7 +382,8 @@ async function winToday(s: State, today: NonNullable<State["today"]>, m: Matched
   const shout = await cheer(senderName, formatRef(today));
   return {
     kind: "win",
-    text: `${shout}\n\n🥇 ${tag(senderId)} got it first in ⏱️ ${formatTime(minutes)}!\n` +
+    text:
+      `${shout}\n\n🥇 ${tag(senderId)} got it first in ⏱️ ${formatTime(minutes)}!\n` +
       `🎯 ${ANSWER_LABEL[type]}: ${base}${bonusText} = ✨ ${points} points ✨\n\n` +
       `📖 ${fullRef(today)}:\n"${today.text}"\n\n` +
       `📊 Season total: ${p.points} points (#${rank} on the leaderboard) 🏆` +
@@ -342,15 +402,22 @@ function onTrackAnswer(s: State, senderId: string, senderName: string, sentAt: n
   state.save(s);
   return {
     kind: "onTrack",
-    text: `👍 ${tag(senderId)}, you're on the right track! +${ON_TRACK_POINTS} point. ` +
+    text:
+      `👍 ${tag(senderId)}, you're on the right track! +${ON_TRACK_POINTS} point. ` +
       "Finish the decode or add the reference to win it 🏆",
     mentions: [senderId],
   };
 }
 
 // First correct answer to the Midday Review: smaller prize, no bonus spots after it
-async function winReview(s: State, review: Review, m: Matched,
-                         senderId: string, senderName: string, sentAt: number): Promise<Reply> {
+async function winReview(
+  s: State,
+  review: Review,
+  m: Matched,
+  senderId: string,
+  senderName: string,
+  sentAt: number
+): Promise<Reply> {
   const type = answerType(m);
   const points = REVIEW_POINTS[type];
   const minutes = Math.max(0, (sentAt - review.verse.postedAt) / 60_000);
@@ -364,18 +431,26 @@ async function winReview(s: State, review: Review, m: Matched,
   const shout = await cheer(senderName, formatRef(review.verse));
   return {
     kind: "win",
-    text: `${shout}\n\n🔁 ${tag(senderId)} won the *Midday Review* in ⏱️ ${formatTime(minutes)}!\n` +
+    text:
+      `${shout}\n\n🔁 ${tag(senderId)} won the *Midday Review* in ⏱️ ${formatTime(minutes)}!\n` +
       `🎯 ${ANSWER_LABEL[type]}: ✨ ${points} points ✨\n\n` +
       `📖 ${fullRef(review.verse)}:\n"${review.verse.text}"\n\n` +
       `📊 Season total: ${p.points} points` +
-      (s.today && !s.winner && !s.revealed ? "\n\n☀️ This morning's puzzle is still open! Send !today to see it" : ""),
+      (s.today && !s.winner && !s.revealed
+        ? "\n\n☀️ This morning's puzzle is still open! Send !today to see it"
+        : ""),
     mentions: [senderId],
   };
 }
 
 // First correct answer to Emoji Bible
-async function winEmoji(s: State, game: EmojiGame, senderId: string, senderName: string,
-                        sentAt: number): Promise<Reply> {
+async function winEmoji(
+  s: State,
+  game: EmojiGame,
+  senderId: string,
+  senderName: string,
+  sentAt: number
+): Promise<Reply> {
   const minutes = Math.max(0, (sentAt - game.postedAt) / 60_000);
   const p = getPlayer(s, senderId, senderName, sentAt);
   const before = badgesOf(p);
@@ -387,15 +462,25 @@ async function winEmoji(s: State, game: EmojiGame, senderId: string, senderName:
   state.save(s);
   return {
     kind: "win",
-    text: `🎉 ${tag(senderId)} got it in ⏱️ ${formatTime(minutes)}! ${game.emoji}\n` +
-      `😀 It's *${game.story}*` + (game.reference ? ` (📖 ${game.reference})` : "") + "\n" +
-      `✨ +${EMOJI_POINTS} points ✨` + newsLines(p, before),
+    text:
+      `🎉 ${tag(senderId)} got it in ⏱️ ${formatTime(minutes)}! ${game.emoji}\n` +
+      `😀 It's *${game.story}*` +
+      (game.reference ? ` (📖 ${game.reference})` : "") +
+      "\n" +
+      `✨ +${EMOJI_POINTS} points ✨` +
+      newsLines(p, before),
     mentions: [senderId],
   };
 }
 
 // First correct answer to the Bible Riddle
-function winRiddle(s: State, riddle: RiddleGame, senderId: string, senderName: string, sentAt: number): Reply {
+function winRiddle(
+  s: State,
+  riddle: RiddleGame,
+  senderId: string,
+  senderName: string,
+  sentAt: number
+): Reply {
   const minutes = Math.max(0, (sentAt - riddle.postedAt) / 60_000);
   const p = getPlayer(s, senderId, senderName, sentAt);
   const before = badgesOf(p);
@@ -407,9 +492,13 @@ function winRiddle(s: State, riddle: RiddleGame, senderId: string, senderName: s
   state.save(s);
   return {
     kind: "win",
-    text: `🧩 ${tag(senderId)} solved the riddle in ⏱️ ${formatTime(minutes)}!\n` +
-      `💡 It's *${riddleAnswer(riddle)}*` + (riddle.reference ? ` (📖 ${riddle.reference})` : "") + "\n" +
-      `✨ +${RIDDLE_POINTS} points ✨` + newsLines(p, before),
+    text:
+      `🧩 ${tag(senderId)} solved the riddle in ⏱️ ${formatTime(minutes)}!\n` +
+      `💡 It's *${riddleAnswer(riddle)}*` +
+      (riddle.reference ? ` (📖 ${riddle.reference})` : "") +
+      "\n" +
+      `✨ +${RIDDLE_POINTS} points ✨` +
+      newsLines(p, before),
     mentions: [senderId],
   };
 }
@@ -428,13 +517,14 @@ function lateAnswer(s: State, senderId: string, senderName: string, sentAt: numb
 
   const p = getPlayer(s, senderId, senderName, sentAt);
   const before = badgesOf(p);
-  recordSolve(p, s.today.postedAt);             // every correct answer keeps the streak going
+  recordSolve(p, s.today.postedAt); // every correct answer keeps the streak going
 
   if (spot > LATE_SPOTS) {
     state.save(s);
     return {
       kind: "late",
-      text: `✅ Correct, ${tag(senderId)}! 👏 All ${LATE_SPOTS} bonus spots are taken today. ${firstBy}` +
+      text:
+        `✅ Correct, ${tag(senderId)}! 👏 All ${LATE_SPOTS} bonus spots are taken today. ${firstBy}` +
         newsLines(p, before),
       mentions: [senderId, winner.id],
     };
@@ -445,7 +535,8 @@ function lateAnswer(s: State, senderId: string, senderName: string, sentAt: numb
   state.save(s);
   return {
     kind: "late",
-    text: `✅ Correct, ${tag(senderId)}! +${LATE_POINTS} point (bonus spot ${spot} of ${LATE_SPOTS}) 👏 ${firstBy}` +
+    text:
+      `✅ Correct, ${tag(senderId)}! +${LATE_POINTS} point (bonus spot ${spot} of ${LATE_SPOTS}) 👏 ${firstBy}` +
       newsLines(p, before),
     mentions: [senderId, winner.id],
   };
@@ -462,17 +553,22 @@ export async function hint({ evenIfSolved = false } = {}): Promise<string | null
   });
   const today = s?.today;
   if (!s || !today) return null;
-  const line = s.hintsGiven === 1                   // AI writes the hint outside the queue
-    ? "💡 Extra hint: " + await makeHint(today).catch(() => `the first word is "${today.clue.split(/\s+/)[0] ?? ""}"`)
-    : `🔦 Last hint: it's in the book of 📘 ${today.book}!`;
+  const line =
+    s.hintsGiven === 1 // AI writes the hint outside the queue
+      ? "💡 Extra hint: " +
+        (await makeHint(today).catch(() => `the first word is "${today.clue.split(/\s+/)[0] ?? ""}"`))
+      : `🔦 Last hint: it's in the book of 📘 ${today.book}!`;
 
-  await inOrder(async () => {                       // remember it for !today
+  await inOrder(async () => {
+    // remember it for !today
     const now = state.load();
-    if (now.today?.postedAt !== today.postedAt) return;   // a new puzzle came out meanwhile
+    if (now.today?.postedAt !== today.postedAt) return; // a new puzzle came out meanwhile
     now.hints.push(line);
     state.save(now);
   });
-  return s.hintsGiven === 1 ? line.replace("Extra hint:", "Extra hint (no more ⚡ speed bonus today):") : line;
+  return s.hintsGiven === 1
+    ? line.replace("Extra hint:", "Extra hint (no more ⚡ speed bonus today):")
+    : line;
 }
 
 export function reveal(): Promise<string | null> {
@@ -500,7 +596,10 @@ export async function newReview(): Promise<string | null> {
     if (eligible.length < REVIEW_MIN_POOL) return null;
 
     let pool = eligible.filter(ref => !s.reviewed.includes(ref));
-    if (pool.length === 0) { s.reviewed = []; pool = eligible; }   // all reviewed: start over
+    if (pool.length === 0) {
+      s.reviewed = [];
+      pool = eligible;
+    } // all reviewed: start over
     const ref = pick(pool);
     const chosen = ref ? byRef.get(ref) : undefined;
     if (!ref || !chosen) return null;
@@ -510,9 +609,11 @@ export async function newReview(): Promise<string | null> {
     state.save(s);
 
     const morningOpen = s.today && !s.winner && !s.revealed;
-    return `🔁 *Midday Review* 🧠\nA verse we've had before. Do you remember it?\n\n📜 *${puzzleOf(chosen)}*\n\n` +
+    return (
+      `🔁 *Midday Review* 🧠\nA verse we've had before. Do you remember it?\n\n📜 *${puzzleOf(chosen)}*\n\n` +
       `🎯 First correct answer wins ${REVIEW_POINTS.both} points! Closes at ${when("closeReview")} ⏳` +
-      (morningOpen ? "\n☀️ This morning's puzzle is still open too. Send !today to see it" : "");
+      (morningOpen ? "\n☀️ This morning's puzzle is still open too. Send !today to see it" : "")
+    );
   });
 }
 
@@ -525,14 +626,16 @@ export async function newRiddle(): Promise<string | null> {
   return inOrder(async () => {
     const s = state.load();
     const fresh = riddles.filter(r => !s.riddlesUsed.includes(r.riddle));
-    const startOver = fresh.length === 0;                         // every riddle used: start over
+    const startOver = fresh.length === 0; // every riddle used: start over
     const chosen = pick(startOver ? riddles : fresh);
     if (!chosen) return null;
     s.riddle = { ...chosen, postedAt: Date.now(), winner: null, closed: false };
     s.riddlesUsed = [...(startOver ? [] : s.riddlesUsed), chosen.riddle];
     state.save(s);
-    return `🧩 *Bible Riddle* 🤔\n\n${chosen.riddle}\n\n` +
-      `🎯 First right answer wins ${RIDDLE_POINTS} points! Closes at ${when("closeRiddle")} ⏳`;
+    return (
+      `🧩 *Bible Riddle* 🤔\n\n${chosen.riddle}\n\n` +
+      `🎯 First right answer wins ${RIDDLE_POINTS} points! Closes at ${when("closeRiddle")} ⏳`
+    );
   });
 }
 
@@ -544,8 +647,11 @@ export function closeRiddle(): Promise<string | null> {
     if (!r || r.closed) return null;
     r.closed = true;
     state.save(s);
-    return `🧩 Bible Riddle closed! Nobody got it 😮\nThe answer was *${riddleAnswer(r)}*` +
-      (r.reference ? ` (📖 ${r.reference})` : "") + `. New riddle tomorrow at ${when("riddle")}! 🙌`;
+    return (
+      `🧩 Bible Riddle closed! Nobody got it 😮\nThe answer was *${riddleAnswer(r)}*` +
+      (r.reference ? ` (📖 ${r.reference})` : "") +
+      `. New riddle tomorrow at ${when("riddle")}! 🙌`
+    );
   });
 }
 
@@ -555,19 +661,21 @@ export async function newEmojiGame(): Promise<string | null> {
   const stories = await loadStories();
   if (stories.length === 0) return null;
   const fresh = stories.filter(st => !state.load().storiesUsed.includes(st.story));
-  const startOver = fresh.length === 0;                           // every story used: start over
+  const startOver = fresh.length === 0; // every story used: start over
   const chosen = pick(startOver ? stories : fresh);
   if (!chosen) return null;
-  const emoji = chosen.emoji ?? await makeEmoji(chosen.story);   // the AI call happens outside the queue
+  const emoji = chosen.emoji ?? (await makeEmoji(chosen.story)); // the AI call happens outside the queue
 
   return inOrder(async () => {
     const s = state.load();
     s.emojiGame = { ...chosen, emoji, postedAt: Date.now(), winner: null, closed: false };
     s.storiesUsed = [...(startOver ? [] : s.storiesUsed), chosen.story];
     state.save(s);
-    return `😀 *Emoji Bible* 🎬\nWhich Bible story is this?\n\n${emoji}\n\n` +
+    return (
+      `😀 *Emoji Bible* 🎬\nWhich Bible story is this?\n\n${emoji}\n\n` +
       `🎯 Name the story (who or where, not what the emoji show)! First right answer wins ${EMOJI_POINTS} points. ` +
-      `Closes at ${when("closeEmoji")} ⏳`;
+      `Closes at ${when("closeEmoji")} ⏳`
+    );
   });
 }
 
@@ -579,8 +687,11 @@ export function closeEmojiGame(): Promise<string | null> {
     if (!g || g.closed) return null;
     g.closed = true;
     state.save(s);
-    return `😀 Emoji Bible closed! Nobody got it 😮\n${g.emoji} was *${g.story}*` +
-      (g.reference ? ` (📖 ${g.reference})` : "") + `. See you tomorrow at ${when("emoji")}! 🙌`;
+    return (
+      `😀 Emoji Bible closed! Nobody got it 😮\n${g.emoji} was *${g.story}*` +
+      (g.reference ? ` (📖 ${g.reference})` : "") +
+      `. See you tomorrow at ${when("emoji")}! 🙌`
+    );
   });
 }
 
@@ -592,8 +703,12 @@ export function closeReview(): Promise<string | null> {
     r.closed = true;
     state.save(s);
     const morningOpen = s.today && !s.winner && !s.revealed;
-    return `🔁 Midday Review closed! Nobody got it 😮 It was 📖 ${fullRef(r.verse)}:\n\n"${r.verse.text}"` +
-      (morningOpen ? `\n\n☀️ This morning's puzzle is still open until ${when("reveal")}. Send !today to see it 💪` : "");
+    return (
+      `🔁 Midday Review closed! Nobody got it 😮 It was 📖 ${fullRef(r.verse)}:\n\n"${r.verse.text}"` +
+      (morningOpen
+        ? `\n\n☀️ This morning's puzzle is still open until ${when("reveal")}. Send !today to see it 💪`
+        : "")
+    );
   });
 }
 
@@ -613,9 +728,16 @@ function riddleStatus(s: State): Post | null {
   const r = s.riddle;
   if (!r || dayKey(r.postedAt) !== dayKey(Date.now())) return null;
   const head = `🧩 *Bible Riddle*: ${r.riddle}`;
-  if (r.winner) return { text: `${head}\n✅ Solved by ${tag(r.winner.id)}: it was *${riddleAnswer(r)}*`, mentions: [r.winner.id] };
+  if (r.winner)
+    return {
+      text: `${head}\n✅ Solved by ${tag(r.winner.id)}: it was *${riddleAnswer(r)}*`,
+      mentions: [r.winner.id],
+    };
   if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was *${riddleAnswer(r)}*`, mentions: [] };
-  return { text: `${head}\n⏳ Open until ${when("closeRiddle")}: first right answer wins ${RIDDLE_POINTS} points!`, mentions: [] };
+  return {
+    text: `${head}\n⏳ Open until ${when("closeRiddle")}: first right answer wins ${RIDDLE_POINTS} points!`,
+    mentions: [],
+  };
 }
 
 // Today's Emoji Bible, if one was posted today
@@ -623,9 +745,13 @@ function emojiStatus(s: State): Post | null {
   const g = s.emojiGame;
   if (!g || dayKey(g.postedAt) !== dayKey(Date.now())) return null;
   const head = `😀 *Emoji Bible*: ${g.emoji}`;
-  if (g.winner) return { text: `${head}\n✅ Won by ${tag(g.winner.id)}: it was *${g.story}*`, mentions: [g.winner.id] };
+  if (g.winner)
+    return { text: `${head}\n✅ Won by ${tag(g.winner.id)}: it was *${g.story}*`, mentions: [g.winner.id] };
   if (g.closed) return { text: `${head}\n🌙 Nobody got it. It was *${g.story}*`, mentions: [] };
-  return { text: `${head}\n⏳ Open until ${when("closeEmoji")}: name the story for ${EMOJI_POINTS} points!`, mentions: [] };
+  return {
+    text: `${head}\n⏳ Open until ${when("closeEmoji")}: name the story for ${EMOJI_POINTS} points!`,
+    mentions: [],
+  };
 }
 
 // Today's Midday Review, if one was posted today
@@ -634,10 +760,16 @@ function reviewStatus(s: State): Post | null {
   if (!r || dayKey(r.verse.postedAt) !== dayKey(Date.now())) return null;
   const head = `🔁 *Midday Review*: *${puzzleOf(r.verse)}*`;
   if (r.winner) {
-    return { text: `${head}\n✅ Won by ${tag(r.winner.id)} in ⏱️ ${formatTime(r.winner.minutes)}!`, mentions: [r.winner.id] };
+    return {
+      text: `${head}\n✅ Won by ${tag(r.winner.id)} in ⏱️ ${formatTime(r.winner.minutes)}!`,
+      mentions: [r.winner.id],
+    };
   }
   if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was 📖 ${fullRef(r.verse)}`, mentions: [] };
-  return { text: `${head}\n⏳ Open until ${when("closeReview")}: first correct answer wins ${REVIEW_POINTS.both} points!`, mentions: [] };
+  return {
+    text: `${head}\n⏳ Open until ${when("closeReview")}: first correct answer wins ${REVIEW_POINTS.both} points!`,
+    mentions: [],
+  };
 }
 
 function morningStatus(s: State): Post {
@@ -659,29 +791,36 @@ function morningStatus(s: State): Post {
   }
   const left = Math.max(0, LATE_SPOTS - s.lateSolvers.length);
   lines.push(`✅ Solved by ${tag(s.winner.id)} in ⏱️ ${formatTime(s.winner.minutes)}! 🎉`);
-  lines.push(left > 0
-    ? `👏 ${left} of ${LATE_SPOTS} bonus spots left: answer correctly for +${LATE_POINTS}`
-    : `👏 All ${LATE_SPOTS} bonus spots are taken. Try tomorrow's! 🙏`);
+  lines.push(
+    left > 0
+      ? `👏 ${left} of ${LATE_SPOTS} bonus spots left: answer correctly for +${LATE_POINTS}`
+      : `👏 All ${LATE_SPOTS} bonus spots are taken. Try tomorrow's! 🙏`
+  );
   return { text: lines.join("\n"), mentions: [s.winner.id] };
 }
 
 // ---------- Leaderboards ----------
 const MEDALS = ["🥇", "🥈", "🥉"];
-const TOP = 10;                               // the main board
-const HONORABLE = 5;                          // ranks 11-15, listed under it
+const TOP = 10; // the main board
+const HONORABLE = 5; // ranks 11-15, listed under it
 
 // Top 10, then 5 honourable mentions. Anyone asking from further down sees their own place.
 export function leaderboard(kind: "season" | "week" = "season", askerId?: string): Post {
   const all = ranked(state.load(), kind);
-  const title = kind === "week" ? "📅 This week's leaderboard 🔥" : `🏆 ${new Date().getFullYear()} season leaderboard 🏆`;
+  const title =
+    kind === "week"
+      ? "📅 This week's leaderboard 🔥"
+      : `🏆 ${new Date().getFullYear()} season leaderboard 🏆`;
   if (all.length === 0) return { text: `${title}\n🤷 No points yet. Be the first! 🚀`, mentions: [] };
 
   const row = (p: Ranked, i: number) =>
-    `${MEDALS[i] ?? `${i + 1}.`} ${tag(p.id)}: ${p.score} pts` + (kind === "season" ? ` (🏅 ${p.wins} wins)` : "");
+    `${MEDALS[i] ?? `${i + 1}.`} ${tag(p.id)}: ${p.score} pts` +
+    (kind === "season" ? ` (🏅 ${p.wins} wins)` : "");
   const top = all.slice(0, TOP);
   const honorable = all.slice(TOP, TOP + HONORABLE);
   const lines = [title, "", ...top.map(row)];
-  if (honorable.length) lines.push("", "🎖️ *Honourable mentions*", ...honorable.map((p, i) => row(p, TOP + i)));
+  if (honorable.length)
+    lines.push("", "🎖️ *Honourable mentions*", ...honorable.map((p, i) => row(p, TOP + i)));
 
   const mine = askerId ? all.findIndex(p => p.id === askerId) : -1;
   if (mine >= TOP + HONORABLE) {
@@ -696,10 +835,14 @@ export function myStats(senderId: string): Post {
   const i = board.findIndex(r => r.id === senderId);
   const p = board[i];
   if (!p) {
-    return { text: `🌱 ${tag(senderId)}, no points yet this season. Tomorrow could be your day! 💪`, mentions: [senderId] };
+    return {
+      text: `🌱 ${tag(senderId)}, no points yet this season. Tomorrow could be your day! 💪`,
+      mentions: [senderId],
+    };
   }
   const badges = badgesOf(p);
-  const text = `📊 ${tag(p.id)}: ⭐ ${p.points} pts, 🏅 ${p.wins} wins, 🏆 #${i + 1} this season.\n` +
+  const text =
+    `📊 ${tag(p.id)}: ⭐ ${p.points} pts, 🏅 ${p.wins} wins, 🏆 #${i + 1} this season.\n` +
     `⚡ Fastest solve: ${p.fastestMin === null ? "none yet" : formatTime(p.fastestMin)}\n` +
     streakLine(streakNow(s, p), p.bestStreak) +
     (badges.length ? `\n🎖️ Badges: ${badges.join(", ")}` : "");
@@ -717,11 +860,12 @@ export function streak(senderId: string): Post {
     return { text: "🌱 No streak yet. Solve today's puzzle to start one! 🔥", mentions: [] };
   }
   const { current, onTheLine } = streakNow(s, p);
-  const text = current > 0
-    ? `🔥 ${tag(senderId)} is on a ${current}-day streak! (best: ${p.bestStreak}) Keep eating the Word! 📖`
-    : onTheLine > 0
-      ? `⏳ ${tag(senderId)}, your ${onTheLine}-day streak is on the line! (best: ${p.bestStreak}) Solve today's puzzle to keep it going 🔥`
-      : `💤 ${tag(senderId)}'s streak has ended (best: ${p.bestStreak}). Solve today's puzzle to start again! 💪`;
+  const text =
+    current > 0
+      ? `🔥 ${tag(senderId)} is on a ${current}-day streak! (best: ${p.bestStreak}) Keep eating the Word! 📖`
+      : onTheLine > 0
+        ? `⏳ ${tag(senderId)}, your ${onTheLine}-day streak is on the line! (best: ${p.bestStreak}) Solve today's puzzle to keep it going 🔥`
+        : `💤 ${tag(senderId)}'s streak has ended (best: ${p.bestStreak}). Solve today's puzzle to start again! 💪`;
   return { text, mentions: [senderId] };
 }
 
@@ -738,7 +882,8 @@ const hasRiddles = () => Boolean(optionalEnv("RIDDLES_CSV_URL"));
 
 // 10 minutes before each game: a heads-up. null when that game won't run today.
 export function reminder(game: "puzzle" | "riddle" | "review" | "emoji"): string | null {
-  if (game === "puzzle") return `⏰ Today's scripture drops at ${when("puzzle")}, in 10 minutes! Get ready 📖🔥`;
+  if (game === "puzzle")
+    return `⏰ Today's scripture drops at ${when("puzzle")}, in 10 minutes! Get ready 📖🔥`;
   if (game === "riddle") {
     if (!hasRiddles()) return null;
     return `⏰ *Bible Riddle* at ${when("riddle")}, in 10 minutes! 🧩🤔`;
@@ -755,14 +900,16 @@ export function reminder(game: "puzzle" | "riddle" | "review" | "emoji"): string
 export function schedule(): string {
   const reviewSoon = reviewNotYet();
   const zone = new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
-    .formatToParts(new Date()).find(p => p.type === "timeZoneName")?.value;
+    .formatToParts(new Date())
+    .find(p => p.type === "timeZoneName")?.value;
   return [
     "🗓️ *Daily schedule*" + (zone ? ` (${zone})` : ""),
     "",
     `☀️ ${when("puzzle")}: Morning puzzle`,
     ...(hasRiddles() ? [`🧩 ${when("riddle")}: Bible Riddle, until ${when("closeRiddle")}`] : []),
     `💡 ${when("hint")}: Extra hint (the speed bonus ends)`,
-    `🔁 ${when("review")}: Midday Review, until ${when("closeReview")}` + (reviewSoon ? " _(starting soon)_" : ""),
+    `🔁 ${when("review")}: Midday Review, until ${when("closeReview")}` +
+      (reviewSoon ? " _(starting soon)_" : ""),
     `🔦 ${when("bookHint")}: Last hint: the book`,
     ...(hasEmojiBible() ? [`😀 ${when("emoji")}: Emoji Bible, until ${when("closeEmoji")}`] : []),
     `🌙 ${when("reveal")}: The answer, if nobody got it`,

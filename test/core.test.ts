@@ -7,25 +7,56 @@ import type { Riddle, Scripture, Story } from "../src/types";
 // No real AI or Google Sheet in tests
 const fakes = vi.hoisted(() => {
   const john: Scripture = {
-    book: "John", chapter: 3, verseStart: 16, verseEnd: 16, translation: "KJV",
+    book: "John",
+    chapter: 3,
+    verseStart: 16,
+    verseEnd: 16,
+    translation: "KJV",
     clue: "For God so loved the world that He gave His only begotten Son",
     text: "For God so loved the world, that he gave his only begotten Son...",
   };
   const psalm: Scripture = {
-    book: "Psalms", chapter: 23, verseStart: 1, verseEnd: 1, hint: "herder",
-    clue: "The LORD is my shepherd; I shall not want.", text: "The LORD is my shepherd; I shall not want.",
+    book: "Psalms",
+    chapter: 23,
+    verseStart: 1,
+    verseEnd: 1,
+    hint: "herder",
+    clue: "The LORD is my shepherd; I shall not want.",
+    text: "The LORD is my shepherd; I shall not want.",
   };
   // 30 past verses (Psalms 101-130 verse 1) for the Midday Review
   const old: Scripture[] = Array.from({ length: 30 }, (_, i) => ({
-    book: "Psalms", chapter: 101 + i, verseStart: 1, verseEnd: 1,
-    clue: `Old verse number ${101 + i}`, text: `Old verse number ${101 + i}.`,
+    book: "Psalms",
+    chapter: 101 + i,
+    verseStart: 1,
+    verseEnd: 1,
+    clue: `Old verse number ${101 + i}`,
+    text: `Old verse number ${101 + i}.`,
   }));
   const jonah: Story = { story: "Jonah and the big fish", answers: ["jonah"], reference: "Jonah 1-2" };
-  const goliath: Story = { story: "David and Goliath", answers: ["goliath", "david and goliath"], emoji: "🧒🪨🗡️🗿" };
-  const noah: Riddle = { riddle: "I built a boat on dry land and waited for rain. Who am I?", answers: ["noah"], reference: "Genesis 6-9" };
+  const goliath: Story = {
+    story: "David and Goliath",
+    answers: ["goliath", "david and goliath"],
+    emoji: "🧒🪨🗡️🗿",
+  };
+  const noah: Riddle = {
+    riddle: "I built a boat on dry land and waited for rain. Who am I?",
+    answers: ["noah"],
+    reference: "Genesis 6-9",
+  };
   const samson: Riddle = { riddle: "My strength was in my hair. Who am I?", answers: ["samson"] };
-  return { john, psalm, old, jonah, goliath, noah, samson, verses: [john] as Scripture[], stories: [] as Story[],
-    riddles: [] as Riddle[] };
+  return {
+    john,
+    psalm,
+    old,
+    jonah,
+    goliath,
+    noah,
+    samson,
+    verses: [john] as Scripture[],
+    stories: [] as Story[],
+    riddles: [] as Riddle[],
+  };
 });
 vi.mock("../src/sheet", () => ({
   loadScriptures: vi.fn(async () => fakes.verses),
@@ -51,14 +82,14 @@ const KOFI = "222@c.us";
 const ESI = "333@c.us";
 const YAW = "444@c.us";
 const AKUA = "555@c.us";
-const START = new Date(2026, 2, 4, 7, 0);   // Wednesday 4 March 2026, 7:00 AM local time
+const START = new Date(2026, 2, 4, 7, 0); // Wednesday 4 March 2026, 7:00 AM local time
 
 let postedAt = 0;
 const textOf = (r: core.Reply | null | undefined) => (r && "text" in r ? r.text : "");
 const home = process.cwd();
 
 beforeEach(async () => {
-  process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), "core-test-")));  // fresh state.json
+  process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), "core-test-"))); // fresh state.json
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(START);
   fakes.verses = [fakes.john];
@@ -78,7 +109,7 @@ describe("newPuzzle", () => {
   it("keeps a history of every morning verse, even after a reset", async () => {
     fakes.verses = [fakes.john, fakes.psalm];
     await core.newPuzzle();
-    await core.newPuzzle();                            // all used: the used list starts over
+    await core.newPuzzle(); // all used: the used list starts over
     expect(state.load().history).toEqual(["John 3:16", "Psalms 23:1", expect.any(String)]);
   });
 
@@ -95,17 +126,20 @@ describe("newPuzzle", () => {
   });
 
   it("doesn't repeat a verse until all have been used", async () => {
-    fakes.verses = [fakes.john, fakes.psalm];         // John was already used in beforeEach
+    fakes.verses = [fakes.john, fakes.psalm]; // John was already used in beforeEach
     await core.newPuzzle();
     expect(state.load().today?.book).toBe("Psalms");
-    await core.newPuzzle();                            // everything used: starts over
+    await core.newPuzzle(); // everything used: starts over
     expect(state.load().used).toHaveLength(1);
   });
 });
 
 describe("handleMessage", () => {
   it("flags wrong references for a reaction, and ignores chatter", async () => {
-    expect(await core.handleMessage(AMA, "Ama", "John 3:17", postedAt + MIN)).toEqual({ kind: "react", emoji: "🤔" });
+    expect(await core.handleMessage(AMA, "Ama", "John 3:17", postedAt + MIN)).toEqual({
+      kind: "react",
+      emoji: "🤔",
+    });
     expect(await core.handleMessage(AMA, "Ama", "good morning family", postedAt + MIN)).toBeNull();
   });
 
@@ -130,7 +164,13 @@ describe("handleMessage", () => {
   });
 
   it.each([
-    [29, 5], [30, 5], [31, 3], [120, 3], [121, 1], [240, 1], [241, 0],
+    [29, 5],
+    [30, 5],
+    [31, 3],
+    [120, 3],
+    [121, 1],
+    [240, 1],
+    [241, 0],
   ])("gives the right speed bonus at %i minutes", async (minutes, bonus) => {
     await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + minutes * MIN);
     expect(state.load().scores[AMA]?.points).toBe(6 + bonus);
@@ -196,7 +236,8 @@ describe("handleMessage", () => {
 
   it("lets the first message win even if its AI cheer is slow", async () => {
     vi.mocked(ai.celebrate).mockImplementationOnce(
-      () => new Promise(r => setTimeout(() => r("slow cheer"), 50)));
+      () => new Promise(r => setTimeout(() => r("slow cheer"), 50))
+    );
     const [first, second] = await Promise.all([
       core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN),
       core.handleMessage(KOFI, "Kofi", "John 3:16", postedAt + MIN),
@@ -210,26 +251,30 @@ describe("taking turns", () => {
   // An answer that needs the AI, which takes a moment to reply
   function slowAiAnswer() {
     let finish!: () => void;
-    vi.mocked(ai.aiReadGuess).mockImplementationOnce(() =>
-      new Promise(r => { finish = () => r({ book: "John", chapter: 3, verse: 16 }); }));
+    vi.mocked(ai.aiReadGuess).mockImplementationOnce(
+      () =>
+        new Promise(r => {
+          finish = () => r({ book: "John", chapter: 3, verse: 16 });
+        })
+    );
     const answer = core.handleMessage(AMA, "Ama", "john three sixteen", postedAt + MIN);
     return { answer, finish: () => finish() };
   }
 
   it("a hint waits for an answer that was already being checked", async () => {
     const { answer, finish } = slowAiAnswer();
-    const hint = core.hint();                       // noon arrives while the AI is thinking
+    const hint = core.hint(); // noon arrives while the AI is thinking
     await vi.waitFor(() => expect(ai.aiReadGuess).toHaveBeenCalled());
     finish();
     expect((await answer)?.kind).toBe("win");
-    expect(await hint).toBeNull();                  // someone won first, so no hint goes out
+    expect(await hint).toBeNull(); // someone won first, so no hint goes out
     expect(state.load().scores[AMA]?.points).toBe(11);
   });
 
   it("a new puzzle isn't overwritten by a slow answer to yesterday's", async () => {
     const { answer, finish } = slowAiAnswer();
     fakes.verses = [fakes.psalm];
-    const puzzle = core.newPuzzle();                // 7 AM arrives while the AI is thinking
+    const puzzle = core.newPuzzle(); // 7 AM arrives while the AI is thinking
     await vi.waitFor(() => expect(ai.aiReadGuess).toHaveBeenCalled());
     finish();
     await answer;
@@ -257,14 +302,18 @@ describe("on the right track", () => {
 
   it("gives it once per person, and they can still win in full", async () => {
     await core.handleMessage(AMA, "Ama", "For God so loved the world", postedAt + MIN);
-    expect(await core.handleMessage(AMA, "Ama", "For God so loved the world that", postedAt + 2 * MIN)).toBeNull();
+    expect(
+      await core.handleMessage(AMA, "Ama", "For God so loved the world that", postedAt + 2 * MIN)
+    ).toBeNull();
     expect((await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + 3 * MIN))?.kind).toBe("win");
     expect(state.load().scores[AMA]?.points).toBe(1 + 6 + 5);
   });
 
   it("gives nothing once someone has won", async () => {
     await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);
-    expect(await core.handleMessage(KOFI, "Kofi", "For God so loved the world", postedAt + 2 * MIN)).toBeNull();
+    expect(
+      await core.handleMessage(KOFI, "Kofi", "For God so loved the world", postedAt + 2 * MIN)
+    ).toBeNull();
     expect(state.load().scores[KOFI]).toBeUndefined();
   });
 
@@ -290,12 +339,18 @@ describe("bonus spots after the winner", () => {
 
     const scores = state.load().scores;
     expect([KOFI, ESI, YAW].map(id => scores[id]?.points)).toEqual([1, 1, 1]);
-    expect(scores[AKUA]).toMatchObject({ points: 0, streak: 1 });   // no points, but it counts for the streak
+    expect(scores[AKUA]).toMatchObject({ points: 0, streak: 1 }); // no points, but it counts for the streak
   });
 
   it("answers each late person only once", async () => {
     await answer(AMA, "Ama");
-    for (const [id, name] of [[KOFI, "Kofi"], [ESI, "Esi"], [YAW, "Yaw"], [AKUA, "Akua"]] as const) await answer(id, name);
+    for (const [id, name] of [
+      [KOFI, "Kofi"],
+      [ESI, "Esi"],
+      [YAW, "Yaw"],
+      [AKUA, "Akua"],
+    ] as const)
+      await answer(id, name);
     expect(await answer(AKUA, "Akua")).toBeNull();
     expect(await answer(KOFI, "Kofi")).toBeNull();
   });
@@ -312,7 +367,8 @@ describe("!today", () => {
     await core.newPuzzle();
     await core.hint();
     expect(core.todayPuzzle()).toEqual({
-      text: "📜 Today's scripture: *TLIMS; ISNW*\n💡 Hint: herder\n💡 Extra hint: behest; lifelong\n\n" +
+      text:
+        "📜 Today's scripture: *TLIMS; ISNW*\n💡 Hint: herder\n💡 Extra hint: behest; lifelong\n\n" +
         "⏳ Nobody has got it yet. First correct answer wins! 🏆",
       mentions: [],
     });
@@ -349,7 +405,10 @@ describe("hint and reveal", () => {
   it("remembers each hint for !today", async () => {
     await core.hint();
     await core.hint();
-    expect(state.load().hints).toEqual(["💡 Extra hint: behest; lifelong", "🔦 Last hint: it's in the book of 📘 John!"]);
+    expect(state.load().hints).toEqual([
+      "💡 Extra hint: behest; lifelong",
+      "🔦 Last hint: it's in the book of 📘 John!",
+    ]);
   });
 
   it("falls back to the first word when the AI is down", async () => {
@@ -414,7 +473,12 @@ describe("streaks and badges", () => {
     await solveOnDay(0);
     vi.setSystemTime(START.getTime() + 24 * 60 * MIN);
     await core.newPuzzle();
-    for (const [id, name] of [[KOFI, "Kofi"], [ESI, "Esi"], [YAW, "Yaw"], [AKUA, "Akua"]] as const) {
+    for (const [id, name] of [
+      [KOFI, "Kofi"],
+      [ESI, "Esi"],
+      [YAW, "Yaw"],
+      [AKUA, "Akua"],
+    ] as const) {
       await core.handleMessage(id, name, "John 3:16", Date.now() + MIN);
     }
     const reply = await core.handleMessage(AMA, "Ama", "John 3:16", Date.now() + 2 * MIN);
@@ -427,7 +491,10 @@ describe("streaks and badges", () => {
     expect(core.streak(AMA).text).toContain("No streak yet");
     await solveOnDay(0);
     await solveOnDay(1);
-    expect(core.streak(AMA)).toEqual({ text: expect.stringContaining("@111 is on a 2-day streak! (best: 2)"), mentions: [AMA] });
+    expect(core.streak(AMA)).toEqual({
+      text: expect.stringContaining("@111 is on a 2-day streak! (best: 2)"),
+      mentions: [AMA],
+    });
     vi.setSystemTime(START.getTime() + 3 * 24 * 60 * MIN);
     await core.newPuzzle();
     expect(core.streak(AMA).text).toContain("streak has ended (best: 2)");
@@ -437,7 +504,7 @@ describe("streaks and badges", () => {
     await solveOnDay(0);
     await solveOnDay(1);
     vi.setSystemTime(START.getTime() + 2 * 24 * 60 * MIN);
-    await core.newPuzzle();                            // day 3's puzzle, not answered yet
+    await core.newPuzzle(); // day 3's puzzle, not answered yet
     expect(core.streak(AMA).text).toContain("@111, your 2-day streak is on the line!");
     expect(core.streak(AMA).text).not.toContain("is on a");
     expect(core.myStats(AMA).text).toContain("Streak: 0 days (best 2)");
@@ -453,8 +520,10 @@ describe("replyTo", () => {
   });
 
   it("keeps the other people a reply already tags", () => {
-    expect(core.replyTo(AMA, { text: "🥇 @222: 11 pts", mentions: [KOFI] }))
-      .toEqual({ text: "@111 🥇 @222: 11 pts", mentions: [AMA, KOFI] });
+    expect(core.replyTo(AMA, { text: "🥇 @222: 11 pts", mentions: [KOFI] })).toEqual({
+      text: "@111 🥇 @222: 11 pts",
+      mentions: [AMA, KOFI],
+    });
   });
 
   it("doesn't tag twice when the reply already tags them", () => {
@@ -464,7 +533,16 @@ describe("replyTo", () => {
 });
 
 describe("help and commands", () => {
-  const PLAYER_COMMANDS = ["!today", "!schedule", "!leaderboard", "!week", "!me", "!streak", "!commands", "!help"];
+  const PLAYER_COMMANDS = [
+    "!today",
+    "!schedule",
+    "!leaderboard",
+    "!week",
+    "!me",
+    "!streak",
+    "!commands",
+    "!help",
+  ];
 
   it("!help lists the points and every other command", () => {
     const text = core.help();
@@ -496,14 +574,24 @@ describe("help and commands", () => {
 describe("big leaderboards", () => {
   // 20 players: "1@c.us" has 200 pts, "2@c.us" 190 ... "20@c.us" 10
   async function crowd() {
-    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);   // just to learn this week's key
+    await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN); // just to learn this week's key
     const s = state.load();
     const week = s.scores[AMA]?.week ?? "";
     delete s.scores[AMA];
     for (let n = 1; n <= 20; n++) {
       s.scores[`${n}@c.us`] = {
-        name: `P${n}`, points: 210 - n * 10, wins: 1, fastestMin: 5, season: 2026, week,
-        weekPoints: 210 - n * 10, streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 0, riddleWins: 0,
+        name: `P${n}`,
+        points: 210 - n * 10,
+        wins: 1,
+        fastestMin: 5,
+        season: 2026,
+        week,
+        weekPoints: 210 - n * 10,
+        streak: 0,
+        bestStreak: 0,
+        lastSolvedDay: null,
+        emojiWins: 0,
+        riddleWins: 0,
       };
     }
     state.save(s);
@@ -523,7 +611,7 @@ describe("big leaderboards", () => {
   it("tells someone further down where they stand", async () => {
     await crowd();
     expect(core.leaderboard("week", "18@c.us").text).toContain("📍 You're #18 with 30 pts");
-    expect(core.leaderboard("week", "3@c.us").text).not.toContain("📍");    // already on the board
+    expect(core.leaderboard("week", "3@c.us").text).not.toContain("📍"); // already on the board
   });
 
   it("leaves out the honourable mentions when there aren't enough players", async () => {
@@ -554,7 +642,7 @@ describe("leaderboards and stats", () => {
 
   it("starts a fresh weekly board on Monday but keeps the season", async () => {
     await win(AMA, "Ama");
-    vi.setSystemTime(new Date(2026, 2, 9, 7, 0));    // next Monday
+    vi.setSystemTime(new Date(2026, 2, 9, 7, 0)); // next Monday
     expect(core.leaderboard("week").mentions).toEqual([]);
     expect(core.leaderboard("season").mentions).toEqual([AMA]);
   });
@@ -570,10 +658,15 @@ describe("leaderboards and stats", () => {
   it("shows a player's own stats", async () => {
     await win(AMA, "Ama", 3);
     expect(core.myStats(AMA)).toEqual({
-      text: expect.stringMatching(/@111: ⭐ 11 pts, 🏅 1 wins, 🏆 #1 this season[\s\S]*Fastest solve: 3 min[\s\S]*Streak: 1 days \(best 1\)[\s\S]*Badges: 🌱 First Fruits/),
+      text: expect.stringMatching(
+        /@111: ⭐ 11 pts, 🏅 1 wins, 🏆 #1 this season[\s\S]*Fastest solve: 3 min[\s\S]*Streak: 1 days \(best 1\)[\s\S]*Badges: 🌱 First Fruits/
+      ),
       mentions: [AMA],
     });
-    expect(core.myStats(KOFI)).toEqual({ text: expect.stringContaining("@222, no points yet"), mentions: [KOFI] });
+    expect(core.myStats(KOFI)).toEqual({
+      text: expect.stringContaining("@222, no points yet"),
+      mentions: [KOFI],
+    });
   });
 });
 
@@ -594,7 +687,7 @@ describe("Midday Review", () => {
   };
 
   it("waits until there are enough old verses", async () => {
-    withHistory(22);                                   // 22 + today - 14 recent = 9 old: not enough
+    withHistory(22); // 22 + today - 14 recent = 9 old: not enough
     expect(await core.newReview()).toBeNull();
     expect(state.load().review).toBeNull();
   });
@@ -607,15 +700,18 @@ describe("Midday Review", () => {
     expect(text).toContain("This morning's puzzle is still open too");
     const chapter = state.load().review?.verse.chapter ?? 0;
     expect(chapter).toBeGreaterThanOrEqual(101);
-    expect(chapter).toBeLessThanOrEqual(117);         // not one of the 14 most recent (118-130)
+    expect(chapter).toBeLessThanOrEqual(117); // not one of the 14 most recent (118-130)
   });
 
   it("doesn't repeat a review verse until all have had a turn", async () => {
     withHistory();
     const seen = new Set<string>();
-    for (let i = 0; i < 17; i++) { await core.newReview(); seen.add(reviewRef()); }
+    for (let i = 0; i < 17; i++) {
+      await core.newReview();
+      seen.add(reviewRef());
+    }
     expect(seen.size).toBe(17);
-    await core.newReview();                            // all 17 used: starts over
+    await core.newReview(); // all 17 used: starts over
     expect(state.load().reviewed).toHaveLength(1);
   });
 
@@ -635,7 +731,10 @@ describe("Midday Review", () => {
     withHistory();
     await core.newReview();
     await core.handleMessage(AMA, "Ama", reviewRef(), TWO_PM + MIN);
-    expect(await core.handleMessage(KOFI, "Kofi", reviewRef(), TWO_PM + 2 * MIN)).toEqual({ kind: "react", emoji: "👏" });
+    expect(await core.handleMessage(KOFI, "Kofi", reviewRef(), TWO_PM + 2 * MIN)).toEqual({
+      kind: "react",
+      emoji: "👏",
+    });
     expect(state.load().scores[KOFI]).toBeUndefined();
   });
 
@@ -648,10 +747,13 @@ describe("Midday Review", () => {
   });
 
   it("reacts 🤔 to a wrong reference while only the review is open", async () => {
-    await core.handleMessage(KOFI, "Kofi", "John 3:16", postedAt + MIN);   // morning solved
+    await core.handleMessage(KOFI, "Kofi", "John 3:16", postedAt + MIN); // morning solved
     withHistory();
     await core.newReview();
-    expect(await core.handleMessage(AMA, "Ama", "Psalms 150:1", TWO_PM + MIN)).toEqual({ kind: "react", emoji: "🤔" });
+    expect(await core.handleMessage(AMA, "Ama", "Psalms 150:1", TWO_PM + MIN)).toEqual({
+      kind: "react",
+      emoji: "🤔",
+    });
   });
 
   it("reveals the answer at 5 PM if nobody got it, then ignores answers", async () => {
@@ -677,7 +779,10 @@ describe("Midday Review", () => {
     expect(open.indexOf("Today's scripture")).toBeLessThan(open.indexOf("Midday Review"));
     expect(open).toContain("⏳ Open until 5 PM");
     await core.handleMessage(AMA, "Ama", reviewRef(), TWO_PM + MIN);
-    expect(core.todayPuzzle()).toMatchObject({ text: expect.stringContaining("✅ Won by @111"), mentions: [AMA] });
+    expect(core.todayPuzzle()).toMatchObject({
+      text: expect.stringContaining("✅ Won by @111"),
+      mentions: [AMA],
+    });
   });
 
   it("is closed by the next morning's puzzle if 5 PM was missed", async () => {
@@ -706,7 +811,7 @@ describe("Emoji Bible", () => {
     expect(text).toContain("😀 *Emoji Bible*");
     expect(text).toContain("🐋🙏🌊");
     expect(text).toContain("Closes at 8 PM");
-    expect(text).not.toContain("Jonah");                 // never gives the answer away
+    expect(text).not.toContain("Jonah"); // never gives the answer away
     expect(ai.makeEmoji).toHaveBeenCalledWith("Jonah and the big fish");
   });
 
@@ -732,7 +837,10 @@ describe("Emoji Bible", () => {
   it("claps for late right answers and ignores wrong ones", async () => {
     await postGame();
     await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN);
-    expect(await core.handleMessage(KOFI, "Kofi", "Jonah", SEVEN_PM + 2 * MIN)).toEqual({ kind: "react", emoji: "👏" });
+    expect(await core.handleMessage(KOFI, "Kofi", "Jonah", SEVEN_PM + 2 * MIN)).toEqual({
+      kind: "react",
+      emoji: "👏",
+    });
     expect(await core.handleMessage(ESI, "Esi", "moses?", SEVEN_PM + 2 * MIN)).toBeNull();
     expect(state.load().scores[KOFI]).toBeUndefined();
   });
@@ -752,35 +860,48 @@ describe("Emoji Bible", () => {
 
   it("doesn't repeat a story until every story has been used", async () => {
     const titles = new Set<string>();
-    for (let i = 0; i < 2; i++) { await postGame([fakes.jonah, fakes.goliath]); titles.add(state.load().emojiGame?.story ?? ""); }
+    for (let i = 0; i < 2; i++) {
+      await postGame([fakes.jonah, fakes.goliath]);
+      titles.add(state.load().emojiGame?.story ?? "");
+    }
     expect(titles.size).toBe(2);
-    await postGame([fakes.jonah, fakes.goliath]);       // both used: starts over
+    await postGame([fakes.jonah, fakes.goliath]); // both used: starts over
     expect(state.load().storiesUsed).toHaveLength(1);
   });
 
   it("lets the AI accept the story named in other words", async () => {
     await postGame();
     vi.mocked(ai.judgeStoryGuess).mockResolvedValueOnce("correct");
-    const reply = await core.handleMessage(AMA, "Ama", "the prophet in the belly of the fish!", SEVEN_PM + MIN);
+    const reply = await core.handleMessage(
+      AMA,
+      "Ama",
+      "the prophet in the belly of the fish!",
+      SEVEN_PM + MIN
+    );
     expect(reply?.kind).toBe("win");
-    expect(ai.judgeStoryGuess).toHaveBeenCalledWith("the prophet in the belly of the fish!",
-      expect.objectContaining({ story: "Jonah and the big fish", emoji: "🐋🙏🌊" }));
+    expect(ai.judgeStoryGuess).toHaveBeenCalledWith(
+      "the prophet in the belly of the fish!",
+      expect.objectContaining({ story: "Jonah and the big fish", emoji: "🐋🙏🌊" })
+    );
     expect(state.load().scores[AMA]?.points).toBe(2);
   });
 
   it("reacts 🤔 when the AI says it's a guess at a different story, and ignores chatter", async () => {
     await postGame();
     vi.mocked(ai.judgeStoryGuess).mockResolvedValueOnce("wrong");
-    expect(await core.handleMessage(KOFI, "Kofi", "noah and the flood", SEVEN_PM + MIN)).toEqual({ kind: "react", emoji: "🤔" });
-    expect(await core.handleMessage(KOFI, "Kofi", "good evening family", SEVEN_PM + MIN)).toBeNull();   // judged not_a_guess
+    expect(await core.handleMessage(KOFI, "Kofi", "noah and the flood", SEVEN_PM + MIN)).toEqual({
+      kind: "react",
+      emoji: "🤔",
+    });
+    expect(await core.handleMessage(KOFI, "Kofi", "good evening family", SEVEN_PM + MIN)).toBeNull(); // judged not_a_guess
     expect(state.load().emojiGame?.closed).toBe(false);
   });
 
   it("only asks the AI when it could matter", async () => {
     await postGame();
-    await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN);                  // a listed answer: no AI needed
+    await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN); // a listed answer: no AI needed
     await core.handleMessage(KOFI, "Kofi", "the man in the whale", SEVEN_PM + MIN); // game already won
-    await core.handleMessage(KOFI, "Kofi", "🙌🙌", SEVEN_PM + MIN);                  // no words
+    await core.handleMessage(KOFI, "Kofi", "🙌🙌", SEVEN_PM + MIN); // no words
     expect(ai.judgeStoryGuess).not.toHaveBeenCalled();
   });
 
@@ -800,12 +921,24 @@ describe("Emoji Bible", () => {
   it("awards Emoji Master after 10 wins", async () => {
     const s = state.load();
     s.scores[AMA] = {
-      name: "Ama", points: 18, wins: 0, fastestMin: null, season: 2026, week: "x", weekPoints: 0,
-      streak: 0, bestStreak: 0, lastSolvedDay: null, emojiWins: 9, riddleWins: 0,
+      name: "Ama",
+      points: 18,
+      wins: 0,
+      fastestMin: null,
+      season: 2026,
+      week: "x",
+      weekPoints: 0,
+      streak: 0,
+      bestStreak: 0,
+      lastSolvedDay: null,
+      emojiWins: 9,
+      riddleWins: 0,
     };
     state.save(s);
     await postGame();
-    expect(textOf(await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN))).toContain("🎖️ New badge: 😀 Emoji Master!");
+    expect(textOf(await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN))).toContain(
+      "🎖️ New badge: 😀 Emoji Master!"
+    );
   });
 });
 
@@ -843,7 +976,10 @@ describe("Bible Riddle", () => {
   it("claps for late right answers and leaves the morning puzzle alone", async () => {
     await postRiddle();
     await core.handleMessage(AMA, "Ama", "noah", TEN_AM + MIN);
-    expect(await core.handleMessage(KOFI, "Kofi", "Noah", TEN_AM + 2 * MIN)).toEqual({ kind: "react", emoji: "👏" });
+    expect(await core.handleMessage(KOFI, "Kofi", "Noah", TEN_AM + 2 * MIN)).toEqual({
+      kind: "react",
+      emoji: "👏",
+    });
     expect(textOf(await core.handleMessage(ESI, "Esi", "John 3:16", TEN_AM + 3 * MIN))).toContain("Esi");
     expect(state.load().winner?.id).toBe(ESI);
   });
@@ -851,10 +987,18 @@ describe("Bible Riddle", () => {
   it("lets the AI accept the answer in other words, and 🤔 a different answer", async () => {
     await postRiddle();
     vi.mocked(ai.judgeRiddleGuess).mockResolvedValueOnce("wrong");
-    expect(await core.handleMessage(KOFI, "Kofi", "moses", TEN_AM + MIN)).toEqual({ kind: "react", emoji: "🤔" });
+    expect(await core.handleMessage(KOFI, "Kofi", "moses", TEN_AM + MIN)).toEqual({
+      kind: "react",
+      emoji: "🤔",
+    });
     vi.mocked(ai.judgeRiddleGuess).mockResolvedValueOnce("correct");
-    expect((await core.handleMessage(AMA, "Ama", "the man who built the ark", TEN_AM + 2 * MIN))?.kind).toBe("win");
-    expect(ai.judgeRiddleGuess).toHaveBeenCalledWith("the man who built the ark", expect.objectContaining({ answers: ["noah"] }));
+    expect((await core.handleMessage(AMA, "Ama", "the man who built the ark", TEN_AM + 2 * MIN))?.kind).toBe(
+      "win"
+    );
+    expect(ai.judgeRiddleGuess).toHaveBeenCalledWith(
+      "the man who built the ark",
+      expect.objectContaining({ answers: ["noah"] })
+    );
   });
 
   it("doesn't ask the AI about reference guesses meant for the morning puzzle", async () => {
@@ -872,15 +1016,20 @@ describe("Bible Riddle", () => {
 
   it("doesn't repeat a riddle until every riddle has been used", async () => {
     const seen = new Set<string>();
-    for (let i = 0; i < 2; i++) { await postRiddle([fakes.noah, fakes.samson]); seen.add(state.load().riddle?.riddle ?? ""); }
+    for (let i = 0; i < 2; i++) {
+      await postRiddle([fakes.noah, fakes.samson]);
+      seen.add(state.load().riddle?.riddle ?? "");
+    }
     expect(seen.size).toBe(2);
-    await postRiddle([fakes.noah, fakes.samson]);       // both used: starts over
+    await postRiddle([fakes.noah, fakes.samson]); // both used: starts over
     expect(state.load().riddlesUsed).toHaveLength(1);
   });
 
   it("shows in !today", async () => {
     await postRiddle();
-    expect(core.todayPuzzle().text).toContain("🧩 *Bible Riddle*: I built a boat on dry land and waited for rain. Who am I?\n⏳ Open until 12 PM");
+    expect(core.todayPuzzle().text).toContain(
+      "🧩 *Bible Riddle*: I built a boat on dry land and waited for rain. Who am I?\n⏳ Open until 12 PM"
+    );
     await core.handleMessage(AMA, "Ama", "noah", TEN_AM + MIN);
     expect(core.todayPuzzle().text).toContain("✅ Solved by @111: it was *Noah*");
   });
@@ -897,12 +1046,25 @@ describe("Bible Riddle", () => {
 });
 
 describe("!schedule", () => {
-  it.each([["0 7 * * *", "7 AM"], ["0 12 * * *", "12 PM"], ["0 14 * * *", "2 PM"], ["5 20 * * 0", "8:05 PM"], ["55 6 * * *", "6:55 AM"], ["0 0 * * *", "12 AM"]])(
-    "reads %j as %s", (cron, time) => expect(core.timeOf(cron)).toBe(time));
+  it.each([
+    ["0 7 * * *", "7 AM"],
+    ["0 12 * * *", "12 PM"],
+    ["0 14 * * *", "2 PM"],
+    ["5 20 * * 0", "8:05 PM"],
+    ["55 6 * * *", "6:55 AM"],
+    ["0 0 * * *", "12 AM"],
+  ])("reads %j as %s", (cron, time) => expect(core.timeOf(cron)).toBe(time));
 
   it("lists the day in order, with the closing times", () => {
     const text = core.schedule();
-    const order = ["Morning puzzle", "Extra hint", "Midday Review, until 5 PM", "Last hint", "The answer", "Weekly standings"];
+    const order = [
+      "Morning puzzle",
+      "Extra hint",
+      "Midday Review, until 5 PM",
+      "Last hint",
+      "The answer",
+      "Weekly standings",
+    ];
     const positions = order.map(o => text.indexOf(o));
     expect(positions.every(p => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);

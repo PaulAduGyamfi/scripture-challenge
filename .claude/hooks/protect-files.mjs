@@ -17,7 +17,8 @@ function block(reason) {
 function reasonFor(rel) {
   const [top = "", ...rest] = rel.split(path.sep);
   const atRoot = rest.length === 0;
-  if (atRoot && top.startsWith(".env") && top !== ".env.example") return `${top} holds secrets (AGENTS.md Never 1).`;
+  if (atRoot && top.startsWith(".env") && top !== ".env.example")
+    return `${top} holds secrets (AGENTS.md Never 1).`;
   if (atRoot && (top === "state.json" || top === "state.json.tmp")) {
     return `${top} is the live scores; it only changes through the bot (AGENTS.md Never 1, I2, I3).`;
   }
@@ -39,7 +40,11 @@ let input = "";
 for await (const chunk of process.stdin) input += chunk;
 
 let hook;
-try { hook = JSON.parse(input); } catch { hook = null; }
+try {
+  hook = JSON.parse(input);
+} catch {
+  hook = null;
+}
 const filePath = hook?.tool_input?.file_path;
 if (typeof filePath !== "string" || filePath === "") {
   block("couldn't read tool_input.file_path from the hook input, so the edit was stopped to be safe.");

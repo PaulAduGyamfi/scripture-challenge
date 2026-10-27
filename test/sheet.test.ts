@@ -4,13 +4,12 @@ const CSV = [
   "Book,Chapter,VerseStart,VerseEnd,Clue,Text,Acronym,Hint,Translation",
   "Jn,3,16,,For God so loved the world,,,,KJV",
   "Romans,8,38,39,neither death nor life,For I am persuaded...,NDNL,angels,",
-  "Hezekiah,1,1,,not a real book,,,,",          // skipped: unknown book
-  "John,abc,1,,bad chapter,,,,",                 // skipped: chapter not a number
-  "John,1,5,3,ends before it starts,,,,",        // skipped: VerseEnd < VerseStart
+  "Hezekiah,1,1,,not a real book,,,,", // skipped: unknown book
+  "John,abc,1,,bad chapter,,,,", // skipped: chapter not a number
+  "John,1,5,3,ends before it starts,,,,", // skipped: VerseEnd < VerseStart
 ].join("\n");
 
-const respond = (body: string, status = 200) =>
-  vi.fn(async () => new Response(body, { status }));
+const respond = (body: string, status = 200) => vi.fn(async () => new Response(body, { status }));
 
 // sheet.ts remembers the last good copy, so each test loads a fresh module
 async function freshSheet() {
@@ -31,10 +30,28 @@ describe("loadScriptures", () => {
     const verses = await loadScriptures();
 
     expect(verses).toEqual([
-      { book: "John", chapter: 3, verseStart: 16, verseEnd: 16, clue: "For God so loved the world",
-        text: "For God so loved the world", acronym: undefined, hint: undefined, translation: "KJV" },
-      { book: "Romans", chapter: 8, verseStart: 38, verseEnd: 39, clue: "neither death nor life",
-        text: "For I am persuaded...", acronym: "NDNL", hint: "angels", translation: undefined },
+      {
+        book: "John",
+        chapter: 3,
+        verseStart: 16,
+        verseEnd: 16,
+        clue: "For God so loved the world",
+        text: "For God so loved the world",
+        acronym: undefined,
+        hint: undefined,
+        translation: "KJV",
+      },
+      {
+        book: "Romans",
+        chapter: 8,
+        verseStart: 38,
+        verseEnd: 39,
+        clue: "neither death nor life",
+        text: "For I am persuaded...",
+        acronym: "NDNL",
+        hint: "angels",
+        translation: undefined,
+      },
     ]);
     expect(console.warn).toHaveBeenCalledTimes(3);
   });
@@ -66,7 +83,7 @@ describe("loadStories", () => {
     "Story,Answers,Reference,Emoji",
     "Jonah and the big fish,jonah,Jonah 1-2,",
     'David and Goliath,"goliath, david and goliath",,🧒🪨',
-    ",missing story,,",                                // skipped
+    ",missing story,,", // skipped
   ].join("\n");
 
   it("reads the Stories tab and splits the answers", async () => {
@@ -75,7 +92,12 @@ describe("loadStories", () => {
     const { loadStories } = await freshSheet();
     expect(await loadStories()).toEqual([
       { story: "Jonah and the big fish", answers: ["jonah"], reference: "Jonah 1-2", emoji: undefined },
-      { story: "David and Goliath", answers: ["goliath", "david and goliath"], reference: undefined, emoji: "🧒🪨" },
+      {
+        story: "David and Goliath",
+        answers: ["goliath", "david and goliath"],
+        reference: undefined,
+        emoji: "🧒🪨",
+      },
     ]);
     expect(console.warn).toHaveBeenCalledOnce();
   });
@@ -99,7 +121,7 @@ describe("loadRiddles", () => {
     "Riddle,Answers,Reference",
     "I built a boat on dry land. Who am I?,noah,Genesis 6-9",
     'My strength was in my hair. Who am I?,"samson, the strong man",',
-    "A riddle with no answer,,",                       // skipped
+    "A riddle with no answer,,", // skipped
   ].join("\n");
 
   it("reads the Riddles tab and splits the answers", async () => {
@@ -108,7 +130,11 @@ describe("loadRiddles", () => {
     const { loadRiddles } = await freshSheet();
     expect(await loadRiddles()).toEqual([
       { riddle: "I built a boat on dry land. Who am I?", answers: ["noah"], reference: "Genesis 6-9" },
-      { riddle: "My strength was in my hair. Who am I?", answers: ["samson", "the strong man"], reference: undefined },
+      {
+        riddle: "My strength was in my hair. Who am I?",
+        answers: ["samson", "the strong man"],
+        reference: undefined,
+      },
     ]);
     expect(console.warn).toHaveBeenCalledOnce();
   });

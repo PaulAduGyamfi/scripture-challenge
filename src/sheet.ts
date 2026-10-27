@@ -25,8 +25,10 @@ async function fetchCsv(url: string): Promise<Record<string, string>[]> {
   if (!res.ok) throw new Error(`Sheet download failed: HTTP ${res.status}`);
   const body = await res.text();
   if (/^\s*<(!doctype|html)/i.test(body)) {
-    throw new Error("That sheet link gives a web page, not CSV. Use File > Share > Publish to web > CSV, " +
-      "and copy the link ending in output=csv (not the /edit link).");
+    throw new Error(
+      "That sheet link gives a web page, not CSV. Use File > Share > Publish to web > CSV, " +
+        "and copy the link ending in output=csv (not the /edit link)."
+    );
   }
   return Papa.parse<Record<string, string>>(body, { header: true, skipEmptyLines: true }).data;
 }
@@ -50,9 +52,14 @@ export async function loadScriptures(): Promise<Scripture[]> {
         return console.warn(`${where} skipped: VerseEnd must be a number, not before VerseStart`);
       }
       good.push({
-        book, chapter: r.data.Chapter, verseStart: r.data.VerseStart, verseEnd,
-        clue: r.data.Clue, text: r.data.Text || r.data.Clue,
-        acronym: r.data.Acronym || undefined, hint: r.data.Hint || undefined,
+        book,
+        chapter: r.data.Chapter,
+        verseStart: r.data.VerseStart,
+        verseEnd,
+        clue: r.data.Clue,
+        text: r.data.Text || r.data.Clue,
+        acronym: r.data.Acronym || undefined,
+        hint: r.data.Hint || undefined,
         translation: r.data.Translation || undefined,
       });
     });
@@ -92,7 +99,9 @@ export async function loadStories(): Promise<Story[]> {
       }
       good.push({
         story: r.data.Story,
-        answers: r.data.Answers.split(",").map(a => a.trim()).filter(Boolean),
+        answers: r.data.Answers.split(",")
+          .map(a => a.trim())
+          .filter(Boolean),
         reference: r.data.Reference || undefined,
         emoji: r.data.Emoji || undefined,
       });
@@ -132,7 +141,9 @@ export async function loadRiddles(): Promise<Riddle[]> {
       }
       good.push({
         riddle: r.data.Riddle,
-        answers: r.data.Answers.split(",").map(a => a.trim()).filter(Boolean),
+        answers: r.data.Answers.split(",")
+          .map(a => a.trim())
+          .filter(Boolean),
         reference: r.data.Reference || undefined,
       });
     });

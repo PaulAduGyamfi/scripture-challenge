@@ -29,9 +29,9 @@ const PlayerSchema = z.object({
   // Streaks never reset with the season. Defaults let older state.json files load.
   streak: z.number().default(0),
   bestStreak: z.number().default(0),
-  lastSolvedDay: z.string().nullable().default(null),   // "2026-03-04", the puzzle's day
-  emojiWins: z.number().default(0),                     // Emoji Bible wins this season
-  riddleWins: z.number().default(0),                    // Bible Riddle wins this season
+  lastSolvedDay: z.string().nullable().default(null), // "2026-03-04", the puzzle's day
+  emojiWins: z.number().default(0), // Emoji Bible wins this season
+  riddleWins: z.number().default(0), // Bible Riddle wins this season
 });
 
 const WinnerSchema = z.object({
@@ -46,7 +46,7 @@ const WinnerSchema = z.object({
 const ReviewSchema = z.object({
   verse: TodaySchema,
   winner: WinnerSchema.nullable(),
-  closed: z.boolean(),                                // won, or revealed at 5 PM
+  closed: z.boolean(), // won, or revealed at 5 PM
 });
 
 // The 7 PM Emoji Bible game, open until 8 PM
@@ -74,18 +74,18 @@ const StateSchema = z.object({
   today: TodaySchema.nullable(),
   winner: WinnerSchema.nullable(),
   hintsGiven: z.number(),
-  revealed: z.boolean().default(false),               // the 9 PM reveal went out
-  lateSolvers: z.array(z.string()).default([]),       // correct after the winner, in order; the first 3 got +1
-  hints: z.array(z.string()).default([]),             // hints posted today, for !today
-  onTrack: z.array(z.string()).default([]),           // got today's +1 for starting or quoting the verse
+  revealed: z.boolean().default(false), // the 9 PM reveal went out
+  lateSolvers: z.array(z.string()).default([]), // correct after the winner, in order; the first 3 got +1
+  hints: z.array(z.string()).default([]), // hints posted today, for !today
+  onTrack: z.array(z.string()).default([]), // got today's +1 for starting or quoting the verse
   used: z.array(z.string()),
-  history: z.array(z.string()).default([]),           // every morning verse in order; never reset
+  history: z.array(z.string()).default([]), // every morning verse in order; never reset
   review: ReviewSchema.nullable().default(null),
-  reviewed: z.array(z.string()).default([]),          // review verses so far; reset when all have had a turn
+  reviewed: z.array(z.string()).default([]), // review verses so far; reset when all have had a turn
   emojiGame: EmojiGameSchema.nullable().default(null),
-  storiesUsed: z.array(z.string()).default([]),       // Emoji Bible stories so far; reset when all used
+  storiesUsed: z.array(z.string()).default([]), // Emoji Bible stories so far; reset when all used
   riddle: RiddleGameSchema.nullable().default(null),
-  riddlesUsed: z.array(z.string()).default([]),       // riddles so far; reset when all used
+  riddlesUsed: z.array(z.string()).default([]), // riddles so far; reset when all used
   scores: z.record(z.string(), PlayerSchema),
 });
 
@@ -102,8 +102,24 @@ const RESTORE = `Copy the newest file from the ${BACKUPS} folder over ${FILE}.`;
 
 export function load(): State {
   if (!fs.existsSync(FILE)) {
-    return { today: null, winner: null, hintsGiven: 0, revealed: false, lateSolvers: [], hints: [], onTrack: [], used: [],
-      history: [], review: null, reviewed: [], emojiGame: null, storiesUsed: [], riddle: null, riddlesUsed: [], scores: {} };
+    return {
+      today: null,
+      winner: null,
+      hintsGiven: 0,
+      revealed: false,
+      lateSolvers: [],
+      hints: [],
+      onTrack: [],
+      used: [],
+      history: [],
+      review: null,
+      reviewed: [],
+      emojiGame: null,
+      storiesUsed: [],
+      riddle: null,
+      riddlesUsed: [],
+      scores: {},
+    };
   }
   let raw: unknown;
   try {
@@ -130,10 +146,16 @@ export function save(s: State): void {
 export function backup(now = new Date()): string | null {
   if (!fs.existsSync(FILE)) return null;
   fs.mkdirSync(BACKUPS, { recursive: true });
-  const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map(n => String(n).padStart(2, "0")).join("-");
+  const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+    .map(n => String(n).padStart(2, "0"))
+    .join("-");
   const dest = path.join(BACKUPS, `state-${day}.json`);
   fs.copyFileSync(FILE, dest);
-  const old = fs.readdirSync(BACKUPS).filter(f => /^state-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().slice(0, -KEEP_BACKUPS);
+  const old = fs
+    .readdirSync(BACKUPS)
+    .filter(f => /^state-\d{4}-\d{2}-\d{2}\.json$/.test(f))
+    .sort()
+    .slice(0, -KEEP_BACKUPS);
   for (const f of old) fs.rmSync(path.join(BACKUPS, f));
   return dest;
 }

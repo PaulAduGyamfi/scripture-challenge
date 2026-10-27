@@ -1,11 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { findBook, makeAcronym, parseReference, mightBeReference, isCorrect, formatRef, matchesDecode, namesStory,
-  startsVerse, quotesVerse } from "../src/game";
+import {
+  findBook,
+  makeAcronym,
+  parseReference,
+  mightBeReference,
+  isCorrect,
+  formatRef,
+  matchesDecode,
+  namesStory,
+  startsVerse,
+  quotesVerse,
+} from "../src/game";
 import type { Scripture } from "../src/types";
 
 const romans: Scripture = {
-  book: "Romans", chapter: 8, verseStart: 38, verseEnd: 39,
-  clue: "neither death, nor life", text: "For I am persuaded that neither death nor life...",
+  book: "Romans",
+  chapter: 8,
+  verseStart: 38,
+  verseEnd: 39,
+  clue: "neither death, nor life",
+  text: "For I am persuaded that neither death nor life...",
 };
 
 describe("findBook", () => {
@@ -27,7 +41,7 @@ describe("findBook", () => {
   });
 
   it("refuses ambiguous or too-short input", () => {
-    expect(findBook("jo")).toBeNull();      // Joshua, Job, Joel, John, Jonah...
+    expect(findBook("jo")).toBeNull(); // Joshua, Job, Joel, John, Jonah...
     expect(findBook("j")).toBeNull();
     expect(findBook("1 j")).toBeNull();
     expect(findBook("hello")).toBeNull();
@@ -41,8 +55,9 @@ describe("findBook", () => {
 
 describe("makeAcronym", () => {
   it("matches the example in the code comment", () => {
-    expect(makeAcronym("because David did what was right in the eyes of the LORD, and did not turn aside"))
-      .toBe("BDDWWRITEOTL, ADNTA...");
+    expect(
+      makeAcronym("because David did what was right in the eyes of the LORD, and did not turn aside")
+    ).toBe("BDDWWRITEOTL, ADNTA...");
   });
 
   it("keeps semicolons and drops the ... when the verse is complete", () => {
@@ -82,11 +97,20 @@ describe("parseReference", () => {
 });
 
 describe("mightBeReference", () => {
-  it.each(["john three sixteen", "the shepherd psalm twenty three", "1 cor thirteen four", "chapter 3 of the gospel"])(
-    "is worth an AI look: %j", msg => expect(mightBeReference(msg)).toBe(true));
+  it.each([
+    "john three sixteen",
+    "the shepherd psalm twenty three",
+    "1 cor thirteen four",
+    "chapter 3 of the gospel",
+  ])("is worth an AI look: %j", msg => expect(mightBeReference(msg)).toBe(true));
 
-  it.each(["see you at 5pm", "it is 5 o'clock", "meeting at 7, act fast", "we have 2 tickets", "john is coming"])(
-    "is not worth an AI look: %j", msg => expect(mightBeReference(msg)).toBe(false));
+  it.each([
+    "see you at 5pm",
+    "it is 5 o'clock",
+    "meeting at 7, act fast",
+    "we have 2 tickets",
+    "john is coming",
+  ])("is not worth an AI look: %j", msg => expect(mightBeReference(msg)).toBe(false));
 });
 
 describe("isCorrect", () => {
@@ -118,7 +142,9 @@ describe("matchesDecode", () => {
   });
 
   it("accepts a missing word and chatter around the answer", () => {
-    expect(matchesDecode("Is it: God so loved the world that He gave His only begotten Son? amen", clue)).toBe(true);
+    expect(
+      matchesDecode("Is it: God so loved the world that He gave His only begotten Son? amen", clue)
+    ).toBe(true);
   });
 
   it("counts two swapped letters as one typo", () => {
@@ -143,11 +169,17 @@ describe("matchesDecode", () => {
 describe("namesStory", () => {
   const goliath = ["goliath", "david and goliath"];
 
-  it.each(["Goliath", "David & Goliath!", "it's david and goliath", "golaith?", "DAVID AND THE GIANT GOLIATH"])(
-    "accepts %j", msg => expect(namesStory(msg, goliath)).toBe(true));
+  it.each([
+    "Goliath",
+    "David & Goliath!",
+    "it's david and goliath",
+    "golaith?",
+    "DAVID AND THE GIANT GOLIATH",
+  ])("accepts %j", msg => expect(namesStory(msg, goliath)).toBe(true));
 
-  it.each(["david", "the giant", "", "and the"])(
-    "rejects %j", msg => expect(namesStory(msg, goliath)).toBe(false));
+  it.each(["david", "the giant", "", "and the"])("rejects %j", msg =>
+    expect(namesStory(msg, goliath)).toBe(false)
+  );
 
   it("doesn't let one short name pass for another", () => {
     expect(namesStory("tower of babel", ["cain and abel", "abel"])).toBe(false);
@@ -165,7 +197,7 @@ describe("namesStory", () => {
 });
 
 describe("startsVerse", () => {
-  const clue = "For God so loved the world that He gave His only begotten Son";   // 13 words: needs 7
+  const clue = "For God so loved the world that He gave His only begotten Son"; // 13 words: needs 7
 
   it("accepts half or more, from the first word, with typos", () => {
     expect(startsVerse("For God so loved the world that", clue)).toBe(true);
@@ -173,19 +205,20 @@ describe("startsVerse", () => {
   });
 
   it("needs enough of it", () => {
-    expect(startsVerse("For God so loved the world", clue)).toBe(false);   // 6 of 13
-    expect(startsVerse("God so loved the world that He gave", clue)).toBe(false);   // not from the start
+    expect(startsVerse("For God so loved the world", clue)).toBe(false); // 6 of 13
+    expect(startsVerse("God so loved the world that He gave", clue)).toBe(false); // not from the start
   });
 
   it("needs at least 4 words even for a short clue", () => {
-    const short = "Jesus wept and the Jews said";   // 6 words: half is 3, but the minimum is 4
+    const short = "Jesus wept and the Jews said"; // 6 words: half is 3, but the minimum is 4
     expect(startsVerse("jesus wept and the", short)).toBe(true);
     expect(startsVerse("jesus wept and", short)).toBe(false);
   });
 });
 
 describe("quotesVerse", () => {
-  const text = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him";
+  const text =
+    "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him";
 
   it("accepts 5 words in a row from anywhere in the verse", () => {
     expect(quotesVerse("that whosoever believeth in him!", text)).toBe(true);
