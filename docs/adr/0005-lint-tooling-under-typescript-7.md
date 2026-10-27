@@ -1,7 +1,7 @@
 # 0005. Lint tooling under TypeScript 7
 
-- **Status:** Proposed
-- **Date:** 2026-10-27
+- **Status:** Accepted
+- **Date:** 2026-10-27 (proposed and accepted)
 
 ## Context
 
@@ -31,9 +31,16 @@ adding one should still say why.
 
 ## Decision
 
-TODO(owner)
+Use **oxlint** (option 1) for linting, for now. Keep TypeScript 7 for typecheck and build.
+Options 2 and 3 are not taken.
+
+Revisit, with a new ADR that supersedes this one, if we need lint rules oxlint can't provide,
+or if ESLint + typescript-eslint supports TypeScript 7.
 
 ## Consequences
 
-TODO(owner), once an option is chosen. Whichever is chosen, the PR adds `npm run lint` and runs it in
-CI, and working rule 4 then includes it.
+- oxlint becomes a dev dependency, with an `npm run lint` script that CI runs. Working rule 4 then
+  includes lint. This is done in a separate PR. TODO(owner): schedule it.
+- The repo keeps a single TypeScript version, and nothing about typecheck or build changes.
+- The open questions under Options 1 (rule coverage, type-aware rules, TypeScript 7 support) are
+  answered by that PR's first real run, which removes those TODOs.
