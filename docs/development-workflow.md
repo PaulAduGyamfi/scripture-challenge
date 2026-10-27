@@ -84,8 +84,10 @@ What that means in practice:
   doesn't ask for a code-owner review on them. PR #27 showed no review required and could merge
   normally once the checks were green, with no bypass. If that ever changes, the bypass ("bypass rules"
   on the merge button) is there, and the checks still have to be green.
-- **Dependabot's PRs, and anyone else's,** are expected to need the maintainer's code-owner approval.
-  TODO(owner): confirm on the first Dependabot PR opened or rebased after CODEOWNERS landed.
+- **Dependabot's PRs, and anyone else's,** need the maintainer's code-owner approval as well as green
+  checks. GitHub requests the review automatically, and the PR shows as blocked until it's approved
+  (confirmed on Dependabot's #20, 2026-10-27). Read the diff, then approve in "Files changed" →
+  "Review changes" → Approve, and merge with a merge commit.
 - **Always use a merge commit.** Squash and rebase are allowed, but they change commit hashes, which
   breaks `.git-blame-ignore-revs`. TODO(owner): consider allowing only "Merge".
 

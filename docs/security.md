@@ -60,6 +60,21 @@ Checked by reading the installed packages:
   sheet rows and short AI JSON replies, and is also what the Anthropic SDK uses. Only the copy under
   `chromium-bidi` is still affected, and that one isn't reachable (above).
 
+## Harmless lockfile churn in Dependabot PRs
+
+Dependabot's npm PRs (e.g. #20, #22) also remove `"dev": true` from about 20 lockfile entries:
+TypeScript 7's prebuilt platform binaries (`@typescript/typescript-<platform>`). That's expected
+and harmless:
+
+- `typescript` is our dev dependency, but it's also an optional peer dependency of `cosmiconfig`,
+  which reaches production through whatsapp-web.js → puppeteer → cosmiconfig (`npm explain typescript`).
+  Because of that shared link, npm versions disagree on whether its binaries count as dev-only.
+  Our local npm (10.9.8) marks them `dev`, and Dependabot's doesn't.
+- Nothing we run depends on the flag. `deploy.sh` runs a full `npm ci`, not `--omit=dev`, and
+  none of these packages has advisories, so `npm audit --omit=dev` reports the same either way.
+
+So review a Dependabot PR on its real change (the package and version it bumps). These lines can be ignored.
+
 ## Plan
 
 | Advisory | Plan | Status |
