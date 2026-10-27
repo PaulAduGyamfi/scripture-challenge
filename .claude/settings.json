@@ -16,5 +16,22 @@
         "Bash(npm install *)",
         "Bash(npm uninstall *)"
       ]
+    },
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Edit|Write",
+          "hooks": [
+            { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-files.mjs" }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "hooks": [
+            { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/typecheck-on-stop.mjs", "timeout": 120 }
+          ]
+        }
+      ]
     }
   }
