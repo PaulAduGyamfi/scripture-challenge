@@ -1,0 +1,213 @@
+=== 06:50 reminder: puzzle
+⏰ Today's scripture drops at 7 AM, in 10 minutes! Get ready 📖🔥
+
+=== 06:55 backup
+(nothing)
+
+=== 07:00 newPuzzle
+☀️ Good morning! Today's scripture:
+
+📜 *FGSLTWTHGHOBS...*
+
+💬 Reply with the reference, the decoded words, or both for the most points! 🎯
+🏆 First correct answer wins! ⏱️ Go go go! 🚀
+
+=== 07:02 Kofi (222@c.us): "For God so loved the world that he"
+[onTrack] 👍 @222, you're on the right track! +1 point. Finish the decode or add the reference to win it 🏆
+(mentions: 222@c.us)
+
+=== 07:04 Ama (111@c.us): "John 3:16 For God so loved the world that He gave His only begotten Son"
+[win] Haaaa! Ama has been eating the Word!
+
+🥇 @111 got it first in ⏱️ 4 min!
+🎯 Reference + decoded: 10 + ⚡5 speed bonus = ✨ 15 points ✨
+
+📖 John 3:16 (KJV):
+"For God so loved the world, that he gave his only begotten Son..."
+
+📊 Season total: 15 points (#1 on the leaderboard) 🏆
+
+🎖️ New badge: 🌱 First Fruits!
+(mentions: 111@c.us)
+
+=== 07:10 Kofi (222@c.us): "jn 3 16"
+[late] ✅ Correct, @222! +1 point (bonus spot 1 of 3) 👏 @111 got it first today 🏃💨
+(mentions: 222@c.us, 111@c.us)
+
+=== 07:12 Esi (333@c.us): "John 3:16"
+[late] ✅ Correct, @333! +1 point (bonus spot 2 of 3) 👏 @111 got it first today 🏃💨
+(mentions: 333@c.us, 111@c.us)
+
+=== 07:15 Yaw (444@c.us): "john 3:16"
+[late] ✅ Correct, @444! +1 point (bonus spot 3 of 3) 👏 @111 got it first today 🏃💨
+(mentions: 444@c.us, 111@c.us)
+
+=== 07:20 Akua (555@c.us): "John 3:16"
+[late] ✅ Correct, @555! 👏 All 3 bonus spots are taken today. @111 got it first today 🏃💨
+(mentions: 555@c.us, 111@c.us)
+
+=== 09:50 reminder: riddle
+⏰ *Bible Riddle* at 10 AM, in 10 minutes! 🧩🤔
+
+=== 10:00 newRiddle
+🧩 *Bible Riddle* 🤔
+
+I built a boat on dry land and waited for rain. Who am I?
+
+🎯 First right answer wins 3 points! Closes at 12 PM ⏳
+
+=== 10:05 Esi (333@c.us): "noah"
+[win] 🧩 @333 solved the riddle in ⏱️ 5 min!
+💡 It's *Noah* (📖 Genesis 6-9)
+✨ +3 points ✨
+(mentions: 333@c.us)
+
+=== 12:00 closeRiddle
+(nothing)
+
+=== 12:00 hint (12 PM)
+(nothing)
+
+=== 13:50 reminder: review
+⏰ *Midday Review* starts at 2 PM, in 10 minutes! 🔁🧠
+
+=== 14:00 newReview
+🔁 *Midday Review* 🧠
+A verse we've had before. Do you remember it?
+
+📜 *OVN...*
+
+🎯 First correct answer wins 5 points! Closes at 5 PM ⏳
+
+=== 14:30 Yaw (444@c.us): "Psalms 101:1 Old verse number 101"
+[win] Haaaa! Yaw has been eating the Word!
+
+🔁 @444 won the *Midday Review* in ⏱️ 30 min!
+🎯 Reference + decoded: ✨ 5 points ✨
+
+📖 Psalms 101:1:
+"Old verse number 101."
+
+📊 Season total: 6 points
+(mentions: 444@c.us)
+
+=== 17:00 closeReview
+(nothing)
+
+=== 18:00 hint (6 PM, the book)
+(nothing)
+
+=== 18:50 reminder: emoji
+⏰ *Emoji Bible* starts at 7 PM, in 10 minutes! 😀🎬
+
+=== 19:00 newEmojiGame
+😀 *Emoji Bible* 🎬
+Which Bible story is this?
+
+🐋🙏🌊
+
+🎯 Name the story (who or where, not what the emoji show)! First right answer wins 2 points. Closes at 8 PM ⏳
+
+=== 19:10 Akua (555@c.us): "the prophet who ran from Nineveh and ended up inside a whale"
+[win] 🎉 @555 got it in ⏱️ 10 min! 🐋🙏🌊
+😀 It's *Jonah and the big fish* (📖 Jonah 1-2)
+✨ +2 points ✨
+(mentions: 555@c.us)
+
+=== 20:00 closeEmojiGame
+(nothing)
+
+=== 21:00 reveal
+(nothing)
+
+=== 21:30 !today
+📜 Today's scripture: *FGSLTWTHGHOBS...*
+
+✅ Solved by @111 in ⏱️ 4 min! 🎉
+👏 All 3 bonus spots are taken. Try tomorrow's! 🙏
+
+🧩 *Bible Riddle*: I built a boat on dry land and waited for rain. Who am I?
+✅ Solved by @333: it was *Noah*
+
+🔁 *Midday Review*: *OVN...*
+✅ Won by @444 in ⏱️ 30 min!
+
+😀 *Emoji Bible*: 🐋🙏🌊
+✅ Won by @555: it was *Jonah and the big fish*
+(mentions: 111@c.us, 333@c.us, 444@c.us, 555@c.us)
+
+=== 21:30 !schedule
+🗓️ *Daily schedule* (EDT)
+
+☀️ 7 AM: Morning puzzle
+🧩 10 AM: Bible Riddle, until 12 PM
+💡 12 PM: Extra hint (the speed bonus ends)
+🔁 2 PM: Midday Review, until 5 PM
+🔦 6 PM: Last hint: the book
+😀 7 PM: Emoji Bible, until 8 PM
+🌙 9 PM: The answer, if nobody got it
+
+📅 Sundays 8:05 PM: Weekly standings
+🏆 Dec 31, 8 PM: Season finale
+
+=== 21:30 !leaderboard (asked by Kofi)
+🏆 2026 season leaderboard 🏆
+
+🥇 @111: 15 pts (🏅 1 wins)
+🥈 @444: 6 pts (🏅 0 wins)
+🥉 @333: 4 pts (🏅 0 wins)
+4. @222: 2 pts (🏅 0 wins)
+5. @555: 2 pts (🏅 0 wins)
+(mentions: 111@c.us, 444@c.us, 333@c.us, 222@c.us, 555@c.us)
+
+=== 21:30 !week (asked by Kofi)
+📅 This week's leaderboard 🔥
+
+🥇 @111: 15 pts
+🥈 @444: 6 pts
+🥉 @333: 4 pts
+4. @222: 2 pts
+5. @555: 2 pts
+(mentions: 111@c.us, 444@c.us, 333@c.us, 222@c.us, 555@c.us)
+
+=== 21:30 !me (Kofi)
+📊 @222: ⭐ 2 pts, 🏅 0 wins, 🏆 #4 this season.
+⚡ Fastest solve: none yet
+🔥 Streak: 1 days (best 1)
+(mentions: 222@c.us)
+
+=== 21:30 !streak (Kofi)
+🔥 @222 is on a 1-day streak! (best: 1) Keep eating the Word! 📖
+(mentions: 222@c.us)
+
+=== 21:30 !commands
+📋 *Commands*
+• !today: today's puzzles, hints, and who solved them 📜
+• !schedule: what happens at what time 🗓️
+• !leaderboard: season standings 🏆
+• !week: this week's standings 📅
+• !me: your points, streak and badges 📊
+• !streak: your current streak 🔥
+• !commands: just this list 📋
+• !help: rules, points and commands 📖
+
+=== 21:30 !help
+📖 *Scripture Challenge* 🙌
+
+☀️ Every day at 7 AM I post a verse as an acronym, like *TLIMS; ISNW*.
+💬 Reply with the reference, the decoded words, or both. First right answer wins!
+💡 Hints at 12 PM and 6 PM · answer at 9 PM
+
+🎯 *Points*
+• Reference + words: 10  ·  Reference: 6  ·  Words: 3
+• ⚡ Up to +5 for speed, before the first hint
+• 👍 +1 for the start of the verse  ·  ✅ +1 for the next 3 after the winner
+
+🎮 *More games* (first right answer wins)
+• 🧩 10 AM Bible Riddle: 3 pts
+• 🔁 2 PM Midday Review: 5 / 3 / 2 pts
+• 😀 7 PM Emoji Bible: 2 pts
+
+🔥 Solve days in a row to build a streak and earn badges.
+
+📋 !today · !schedule · !leaderboard · !week · !me · !streak · !commands

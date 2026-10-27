@@ -1,0 +1,195 @@
+{
+  "today": {
+    "book": "Psalms",
+    "chapter": 23,
+    "verseStart": 1,
+    "verseEnd": 1,
+    "clue": "The LORD is my shepherd; I shall not want.",
+    "text": "The LORD is my shepherd; I shall not want.",
+    "hint": "herder",
+    "postedAt": 1775991600000
+  },
+  "winner": null,
+  "hintsGiven": 2,
+  "revealed": true,
+  "lateSolvers": [],
+  "hints": [
+    "💡 Extra hint: behest; lifelong",
+    "🔦 Last hint: it's in the book of 📘 Psalms!"
+  ],
+  "onTrack": [],
+  "used": [
+    "Psalms 101:1",
+    "Psalms 102:1",
+    "Psalms 103:1",
+    "Psalms 104:1",
+    "Psalms 105:1",
+    "Psalms 106:1",
+    "Psalms 107:1",
+    "Psalms 108:1",
+    "Psalms 109:1",
+    "Psalms 110:1",
+    "Psalms 111:1",
+    "Psalms 112:1",
+    "Psalms 113:1",
+    "Psalms 114:1",
+    "Psalms 115:1",
+    "Psalms 116:1",
+    "Psalms 117:1",
+    "Psalms 118:1",
+    "Psalms 119:1",
+    "Psalms 120:1",
+    "Psalms 121:1",
+    "Psalms 122:1",
+    "Psalms 123:1",
+    "Psalms 124:1",
+    "John 3:16",
+    "Psalms 23:1"
+  ],
+  "history": [
+    "Psalms 101:1",
+    "Psalms 102:1",
+    "Psalms 103:1",
+    "Psalms 104:1",
+    "Psalms 105:1",
+    "Psalms 106:1",
+    "Psalms 107:1",
+    "Psalms 108:1",
+    "Psalms 109:1",
+    "Psalms 110:1",
+    "Psalms 111:1",
+    "Psalms 112:1",
+    "Psalms 113:1",
+    "Psalms 114:1",
+    "Psalms 115:1",
+    "Psalms 116:1",
+    "Psalms 117:1",
+    "Psalms 118:1",
+    "Psalms 119:1",
+    "Psalms 120:1",
+    "Psalms 121:1",
+    "Psalms 122:1",
+    "Psalms 123:1",
+    "Psalms 124:1",
+    "John 3:16",
+    "Psalms 23:1"
+  ],
+  "review": {
+    "verse": {
+      "book": "Psalms",
+      "chapter": 102,
+      "verseStart": 1,
+      "verseEnd": 1,
+      "clue": "Old verse number 102",
+      "text": "Old verse number 102.",
+      "postedAt": 1776016800000
+    },
+    "winner": null,
+    "closed": true
+  },
+  "reviewed": [
+    "Psalms 101:1",
+    "Psalms 102:1"
+  ],
+  "emojiGame": {
+    "story": "David and Goliath",
+    "answers": [
+      "goliath",
+      "david and goliath"
+    ],
+    "emoji": "🧒🪨🗡️🗿",
+    "postedAt": 1776034800000,
+    "winner": null,
+    "closed": true
+  },
+  "storiesUsed": [
+    "Jonah and the big fish",
+    "David and Goliath"
+  ],
+  "riddle": {
+    "riddle": "My strength was in my hair. Who am I?",
+    "answers": [
+      "samson"
+    ],
+    "reference": "Judges 16",
+    "postedAt": 1776002400000,
+    "winner": null,
+    "closed": true
+  },
+  "riddlesUsed": [
+    "I built a boat on dry land and waited for rain. Who am I?",
+    "My strength was in my hair. Who am I?"
+  ],
+  "scores": {
+    "222@c.us": {
+      "name": "Kofi",
+      "points": 2,
+      "wins": 0,
+      "fastestMin": null,
+      "season": 2026,
+      "week": "2026-04-06",
+      "weekPoints": 2,
+      "streak": 1,
+      "bestStreak": 1,
+      "lastSolvedDay": "2026-04-11",
+      "emojiWins": 0,
+      "riddleWins": 0
+    },
+    "111@c.us": {
+      "name": "Ama",
+      "points": 15,
+      "wins": 1,
+      "fastestMin": 4,
+      "season": 2026,
+      "week": "2026-04-06",
+      "weekPoints": 15,
+      "streak": 1,
+      "bestStreak": 1,
+      "lastSolvedDay": "2026-04-11",
+      "emojiWins": 0,
+      "riddleWins": 0
+    },
+    "333@c.us": {
+      "name": "Esi",
+      "points": 4,
+      "wins": 0,
+      "fastestMin": null,
+      "season": 2026,
+      "week": "2026-04-06",
+      "weekPoints": 4,
+      "streak": 1,
+      "bestStreak": 1,
+      "lastSolvedDay": "2026-04-11",
+      "emojiWins": 0,
+      "riddleWins": 1
+    },
+    "444@c.us": {
+      "name": "Yaw",
+      "points": 6,
+      "wins": 0,
+      "fastestMin": null,
+      "season": 2026,
+      "week": "2026-04-06",
+      "weekPoints": 6,
+      "streak": 1,
+      "bestStreak": 1,
+      "lastSolvedDay": "2026-04-11",
+      "emojiWins": 0,
+      "riddleWins": 0
+    },
+    "555@c.us": {
+      "name": "Akua",
+      "points": 2,
+      "wins": 0,
+      "fastestMin": null,
+      "season": 2026,
+      "week": "2026-04-06",
+      "weekPoints": 2,
+      "streak": 1,
+      "bestStreak": 1,
+      "lastSolvedDay": "2026-04-11",
+      "emojiWins": 1,
+      "riddleWins": 0
+    }
+  }
+}
