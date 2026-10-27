@@ -1,0 +1,25 @@
+# Weekly dependency updates. Every Dependabot PR goes through the same CI checks as any other PR,
+# and nothing deploys until someone runs and approves a deploy (docs/adr/0003).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope # "chore(deps): ..." for runtime, "chore(deps-dev): ..." for dev dependencies
+    groups:
+      # Minor and patch updates of dev tools arrive as one PR; runtime dependencies and
+      # major versions still get a PR each, so they can be reviewed on their own.
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope # updates the SHA pins in .github/workflows and their "# vX.Y.Z" comments
