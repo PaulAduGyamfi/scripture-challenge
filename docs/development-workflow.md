@@ -14,7 +14,7 @@ How a change gets from an idea to the live bot. The rules agents follow while do
 | 5 | **Tests** | Agent | Every behaviour change has a test that fails without it (AGENTS.md Testing 1); `npm run typecheck`, `npm test` and `npm run build` pass and the output is in the PR (working rule 4) |
 | 6 | **Evals** (AI changes only) | Agent | Any change to `src/ai.ts` or a prompt has an eval run with results in the PR (Testing 2). Evals don't exist yet: until they do, say so in the PR |
 | 7 | **CI** | GitHub Actions | All six check jobs are green on the PR: `install`, then `typecheck`, `lint`, `format`, `test` and `build` in parallel. `test` uploads a `coverage-summary` artifact |
-| 8 | **Review** | Maintainer | The diff has been read, the PR description is complete (§4), and every invariant it touches is cited |
+| 8 | **Review** | Maintainer (the AI review is advisory, §8) | The diff has been read against the AGENTS.md review checklist (C1–C6), the PR description is complete (§4), and every invariant it touches is cited |
 | 9 | **Merge** | Maintainer | Merged to `main` with a merge commit. Merging doesn't deploy |
 | 10 | **Manual approved deploy** | Maintainer | The deploy has been started from the Actions tab and approved in the `production` environment (§6) |
 | 11 | **Observe** | Maintainer | The bot is healthy after the restart and the next scheduled post went out (§6) |
@@ -154,3 +154,40 @@ bot only after CI has checked it.
 CI sets `HUSKY=0`, so `npm ci` there doesn't install the hooks. On the server, `deploy.sh` runs
 `npm ci`, which installs them into the server's checkout. That's harmless: nobody commits there,
 and `git pull` doesn't run these hooks. To turn hooks off for a single command, prefix it with `HUSKY=0`.
+
+## 8. AI review (advisory)
+
+`.github/workflows/claude-review.yml` runs Claude Code's `code-review` plugin on each pull request
+and posts its findings as **inline comments** on the PR. It checks against the AGENTS.md review
+checklist (C1–C6), like a human reviewer.
+
+**It's advisory, and only that:**
+
+- It is **not a required status check**. The "Protect main" ruleset doesn't list it (§5), and it never
+  blocks a merge, even if it fails or finds problems.
+- It **can't approve** a PR. The workflow's token is read-only, and it only posts comments.
+- **The maintainer makes the merge decision**: read its comments, act on the ones that are right, and
+  ignore the rest.
+
+**When it runs:**
+
+- Once per PR, when the PR is opened, reopened or marked ready for review. **Not on every push**, to
+  keep cost down, so later pushes aren't re-reviewed automatically.
+- Not on draft PRs, which get reviewed when they're marked ready. Not on PRs from forks, because
+  GitHub doesn't give fork runs the secret.
+- On Dependabot's PRs too, if the key is also a Dependabot secret (see setup).
+- At most 10 turns and 15 minutes per run. A newer run on the same PR cancels an older one.
+- **Not on a PR that changes `claude-review.yml` itself.** The action only runs when the workflow file is
+  identical to the one on `main`, so a PR can't change the review (or leak its key) and have that
+  version run. The run shows as successful with a "Workflow validation failed" warning. That's
+  expected; review those PRs yourself.
+
+**To re-run it**, e.g. after pushing fixes: Actions → **Claude review** → the PR's run → **Re-run jobs**.
+Re-running doesn't happen on its own.
+
+**Setup** (once, by the maintainer):
+
+- Install the Claude GitHub App on the repo. It's what posts the comments.
+- Add the API key as the Actions secret `CLAUDE_REVIEW_API_KEY`.
+- Add the same key as a **Dependabot** secret named `CLAUDE_REVIEW_API_KEY` (Settings → Secrets and
+  variables → Dependabot), because Dependabot's runs can't read Actions secrets.
