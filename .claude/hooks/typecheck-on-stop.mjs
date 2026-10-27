@@ -3,10 +3,19 @@
 // already sent back once (stop_hook_active), it exits 1 instead: the errors are shown and the
 // session ends, so it can never loop. Backs AGENTS.md working rule 4 (run every check).
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+// Skip when there's nothing to typecheck with: in GitHub Actions (CI has its own typecheck job), or
+// when the dependencies aren't installed. The AI review's checkout has no node_modules, and its hooks
+// don't see GITHUB_ACTIONS, so without the second check the hook sent Claude off to "fix" a missing
+// install instead of posting the review (#30, #32).
+if (process.env.GITHUB_ACTIONS === "true") process.exit(0);
+if (!fs.existsSync(path.join(ROOT, "node_modules", "typescript"))) process.exit(0);
+
 const SHOW_LINES = 40; // enough to see the errors without flooding the session
 
 let input = "";
