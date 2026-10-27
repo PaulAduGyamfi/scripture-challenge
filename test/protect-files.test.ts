@@ -14,8 +14,14 @@ const editOf = (filePath: string) =>
 
 describe("protect-files hook", () => {
   it.each([
-    ".env", ".env.local", "state.json", "state.json.tmp", "backups/state-2026-03-04.json",
-    ".wwebjs_auth/session/Default/Cookies", "scripts/deploy.sh", "src/../.env",
+    ".env",
+    ".env.local",
+    "state.json",
+    "state.json.tmp",
+    "backups/state-2026-03-04.json",
+    ".wwebjs_auth/session/Default/Cookies",
+    "scripts/deploy.sh",
+    "src/../.env",
   ])("blocks %s with exit 2 and a reason", file => {
     const { code, stderr } = editOf(file);
     expect(code).toBe(2);
@@ -27,13 +33,21 @@ describe("protect-files hook", () => {
   });
 
   it.each([
-    "src/core.ts", ".env.example", "scripts/offsite-backup.sh", "docs/state.json", "AGENTS.md", "/tmp/elsewhere/.env",
+    "src/core.ts",
+    ".env.example",
+    "scripts/offsite-backup.sh",
+    "docs/state.json",
+    "AGENTS.md",
+    "/tmp/elsewhere/.env",
   ])("allows %s with exit 0", file => {
     expect(editOf(file)).toEqual({ code: 0, stderr: "" });
   });
 
-  it.each([["not JSON", "{oops"], ["no file_path", JSON.stringify({ tool_input: {} })], ["empty input", ""]])(
-    "blocks when the hook input is unreadable (%s)", (_, input) => {
-      expect(runHook(input).code).toBe(2);
-    });
+  it.each([
+    ["not JSON", "{oops"],
+    ["no file_path", JSON.stringify({ tool_input: {} })],
+    ["empty input", ""],
+  ])("blocks when the hook input is unreadable (%s)", (_, input) => {
+    expect(runHook(input).code).toBe(2);
+  });
 });
