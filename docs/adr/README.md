@@ -11,7 +11,7 @@ They explain *why* the code is the way it is, so nobody has to rediscover it (se
 | [0002](0002-ai-proposes-deterministic-code-decides.md) | AI proposes, deterministic code decides | Accepted | 2026-10-27 |
 | [0003](0003-production-deploys-require-approval.md) | Production deploys require human approval | Accepted | 2026-10-27 |
 | [0004](0004-keep-state-in-a-json-file.md) | Keep state in a JSON file for now | Accepted | 2026-10-27 |
-| [0005](0005-lint-tooling-under-typescript-7.md) | Lint tooling under TypeScript 7 | Proposed | 2026-10-27 |
+| [0005](0005-lint-tooling-under-typescript-7.md) | Lint tooling under TypeScript 7 | Accepted | 2026-10-27 |
 
 ## Adding one
 
