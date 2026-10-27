@@ -1,0 +1,41 @@
+[
+  {
+    "label": "Saturday 31 October, 9 PM (EDT)",
+    "puzzlePostedAt": "2026-10-31T11:00:00.000Z",
+    "utcOffsetMinutes": -240,
+    "players": {
+      "Ama": {
+        "week": "2026-10-26",
+        "weekPoints": 11,
+        "streak": 1,
+        "bestStreak": 1,
+        "lastSolvedDay": "2026-10-31"
+      }
+    },
+    "weekLeaderboard": "📅 This week's leaderboard 🔥\n\n🥇 @111: 11 pts",
+    "amaStreak": "🔥 @111 is on a 1-day streak! (best: 1) Keep eating the Word! 📖"
+  },
+  {
+    "label": "Sunday 1 November, 9 PM (EST)",
+    "puzzlePostedAt": "2026-11-01T12:00:00.000Z",
+    "utcOffsetMinutes": -300,
+    "players": {
+      "Ama": {
+        "week": "2026-10-26",
+        "weekPoints": 22,
+        "streak": 2,
+        "bestStreak": 2,
+        "lastSolvedDay": "2026-11-01"
+      },
+      "Kofi": {
+        "week": "2026-10-26",
+        "weekPoints": 1,
+        "streak": 1,
+        "bestStreak": 1,
+        "lastSolvedDay": "2026-11-01"
+      }
+    },
+    "weekLeaderboard": "📅 This week's leaderboard 🔥\n\n🥇 @111: 22 pts\n🥈 @222: 1 pts",
+    "amaStreak": "🔥 @111 is on a 2-day streak! (best: 2) Keep eating the Word! 📖"
+  }
+]
