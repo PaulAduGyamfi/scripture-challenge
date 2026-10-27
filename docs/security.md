@@ -35,7 +35,7 @@ release) pins `puppeteer` 24.38.0 exactly, and the vulnerable packages sit under
 | `@puppeteer/browsers`, `puppeteer`, `puppeteer-core` | high | no | via `extract-zip`, `proxy-agent`, `chromium-bidi` | whatsapp-web.js → puppeteer | `--force` only |
 | `whatsapp-web.js` 1.34.7 | high | **yes** | via `puppeteer` | n/a | `--force` (the downgrade above) |
 | `chromium-bidi` 14.0.0 | high | no | via its own `zod` 3.25.76 (GHSA-mrhx-c7xc-m3w5) | puppeteer → chromium-bidi | `--force` only |
-| `zod` 4.6.5 | high | **yes** | GHSA-mrhx-c7xc-m3w5 (memory exhaustion validating oversized constrained collections) | direct, and 3.25.76 under chromium-bidi | top-level copy: 4.6.6+ is published within our `^4.6.5` range |
+| `zod` 3.25.76 (under chromium-bidi) | high | no | GHSA-mrhx-c7xc-m3w5 (memory exhaustion validating oversized constrained collections) | puppeteer → chromium-bidi | `--force` only. Our own copy is fixed: 4.6.7 since 2026-10-27 |
 | `ip-address` 10.7.2 | moderate | no | GHSA-rxp7-6hxx-x8q5 (slow parsing of long IPv6 zone IDs) | puppeteer → … → socks-proxy-agent → socks | `npm audit fix` (non-breaking) |
 
 `vite` (6 advisories) also shows up in a full `npm audit`, but it's a dev dependency of vitest and never
@@ -56,9 +56,9 @@ Checked by reading the installed packages:
     with the Chrome download.
 - **`chromium-bidi` (and its `zod` 3): not reachable.** puppeteer loads it only for the WebDriver BiDi
   protocol, which it uses by default for Firefox. Chrome uses CDP.
-- **Top-level `zod` 4.6.5: low.** It validates `state.json`, sheet rows and short AI JSON replies. None
-  of our schemas put size constraints on collections, which is what the advisory's title describes,
-  and the only outside input (sheet rows) comes from people with edit access to the sheet.
+- **Top-level `zod`: fixed.** Upgraded from 4.6.5 to 4.6.7, which includes the fix. It validates `state.json`,
+  sheet rows and short AI JSON replies, and is also what the Anthropic SDK uses. Only the copy under
+  `chromium-bidi` is still affected, and that one isn't reachable (above).
 
 ## Plan
 
@@ -67,7 +67,7 @@ Checked by reading the installed packages:
 | puppeteer chain (10 entries) | Wait for a whatsapp-web.js release on puppeteer ≥25.13; Dependabot will open the PR. Until then it's install-time only (above). Optionally, test an npm `overrides` entry forcing a fixed puppeteer, in its own PR with a real WhatsApp check | TODO(owner): decide whether to try the override |
 | install-time exposure on the server | Consider installing Chrome once on the server and setting `PUPPETEER_SKIP_DOWNLOAD=true` in `deploy.sh` (only the maintainer edits `deploy.sh`) | TODO(owner) |
 | `ip-address` | `npm update ip-address` in its own PR | To do |
-| top-level `zod` | Bump to ≥4.6.6 (in range) in its own PR. The copy under chromium-bidi stays until puppeteer updates | To do |
+| top-level `zod` | Upgraded to 4.6.7. The copy under chromium-bidi stays until puppeteer updates | **Done** (2026-10-27) |
 | `vite` (dev only) | Comes with Dependabot's grouped dev-dependency PR, or `npm update vite` | To do |
 
 When an entry is fixed, update the table above and the date at the top. Once production `npm audit`
