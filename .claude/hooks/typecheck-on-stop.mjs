@@ -6,6 +6,10 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// Not in GitHub Actions: CI has its own typecheck job, and checkouts there (e.g. the AI review's) may
+// have no node_modules, so the hook would only send Claude off to "fix" a missing install (seen on #30).
+if (process.env.GITHUB_ACTIONS === "true") process.exit(0);
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SHOW_LINES = 40; // enough to see the errors without flooding the session
 
