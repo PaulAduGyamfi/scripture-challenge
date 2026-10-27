@@ -74,3 +74,24 @@ These must never be broken. A PR that has to break one says so in its descriptio
 ## 7. Never
 
 1. Never read .env, state.json, backups/ or .wwebjs_auth/ (`.env.example` is fine). Never deploy or ssh. Never run `npm audit fix --force`.
+
+## 8. Review checklist
+
+Every PR review, by a human or by the AI reviewer (`.github/workflows/claude-review.yml`), checks
+these. Cite them by number, e.g. "C2: the new hint isn't checked before it's posted".
+
+1. **C1. Invariants.** The PR names every invariant it touches (I1–I6), and keeps them, or says why not.
+2. **C2. AI output.** No new path where AI output changes state, awards points or reaches players without a
+   deterministic check in non-AI code (I1, ADR 0002). Look at every new use of a function from `src/ai.ts`.
+3. **C3. `state.json` compatibility.** Any schema change in `src/state.ts` gives new fields Zod defaults,
+   so today's file and older backups still load (I3). There's a test that loads a file without the new field.
+4. **C4. Tests.** Every behaviour change has a test in `test/` that fails without it (Testing 1).
+5. **C5. Logs.** No player message text and no phone-number IDs (`…@c.us`, `…@lid`, or message IDs, which
+   contain them) are logged.
+6. **C6. Dependencies.** Any new dependency is justified in the PR. A runtime one needs a paragraph (I6).
+
+**Known C5 exceptions, to be fixed** (remove each line when a PR fixes it; baseline audit R-18):
+
+- `src/bot.ts`, `onMessage`: logs the sender ID when `ADMIN_ID` isn't set.
+- `src/bot.ts`, `react`: logs the message ID on success and on failure.
+- `src/core.ts`, `handleMessage`: logs up to 100 characters of a Bible Riddle or Emoji Bible answer the AI judged wrong.
