@@ -14,6 +14,7 @@
     "lint:ci": "oxlint --max-warnings 5 src test .claude/hooks",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \".claude/hooks/*.mjs\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \".claude/hooks/*.mjs\"",
+    "prepare": "husky",
     "deploy": "./scripts/deploy.sh"
   },
   "keywords": [],
@@ -23,6 +24,8 @@
     "@types/node": "^26.6.3",
     "@types/papaparse": "^5.5.2",
     "@types/qrcode-terminal": "^0.12.2",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
     "oxlint": "1.90.0",
     "prettier": "3.9.10",
     "tsx": "^4.23.15",
@@ -41,5 +44,11 @@
   "allowScripts": {
     "puppeteer@24.38.0": true,
     "esbuild@0.28.2": true
+  },
+  "lint-staged": {
+    "*.ts": [
+      "prettier --write",
+      "oxlint"
+    ]
   }
 }

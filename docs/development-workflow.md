@@ -108,3 +108,43 @@ branches. Keep it that way: it's what makes deploys manual (step 10).
 - **Bad code:** revert the PR on GitHub, merge the revert, and deploy again.
 - **Bad scores:** see [restore-from-backup.md](runbooks/restore-from-backup.md).
 - **Other deploy details:** see "Updating" in the [README](../README.md).
+
+## 7. Git hooks
+
+`npm install` and `npm ci` set up two local git hooks through husky (the `prepare` script, which
+points git's `core.hooksPath` at `.husky/_`). They catch problems before they leave your machine.
+
+| Hook | Runs | Blocks when | Typical time |
+|---|---|---|---|
+| **pre-commit** (`.husky/pre-commit`) | lint-staged: `prettier --write` then `oxlint` on the **staged `.ts` files only** | oxlint finds an error. Warnings don't block; the warning count is checked in CI | about 1 s for a 1,800-line commit |
+| **pre-push** (`.husky/pre-push`) | `npm run typecheck && npm test` | a type error or a failing test | about 1.5 s |
+
+- Prettier's fixes are added to the commit automatically, so what you commit is already formatted.
+- If you had unstaged changes in the same files, lint-staged keeps them aside and puts them back afterwards.
+- The hooks don't cover `.claude/hooks/*.mjs`. CI checks those.
+
+### Bypassing in an emergency
+
+```bash
+git commit --no-verify -m "fix: ..."    # skips pre-commit
+git push --no-verify                    # skips pre-push
+```
+
+Use this only when a hook is blocking an urgent fix, for example when the bot is down. CI still
+catches anything the hooks would have caught. On every push and pull request it runs the same
+checks, on all files, not just the staged ones:
+
+- `npm run format:check` (instead of pre-commit's Prettier);
+- `npm run lint:ci` (instead of pre-commit's oxlint, and it also enforces the warning count);
+- `npm run typecheck` and `npm test` (pre-push's checks);
+- `npm run build`.
+
+Deploys only run from `main` (§6), so code reaches the live bot only after CI has checked it.
+**But** the "Protect main" ruleset that would *require* the `test` check before merging is switched
+off (§5). Until it's on, check that CI is green before you merge.
+
+### CI and the server
+
+CI sets `HUSKY=0`, so `npm ci` there doesn't install the hooks. On the server, `deploy.sh` runs
+`npm ci`, which installs them into the server's checkout. That's harmless: nobody commits there,
+and `git pull` doesn't run these hooks. To turn hooks off for a single command, prefix it with `HUSKY=0`.

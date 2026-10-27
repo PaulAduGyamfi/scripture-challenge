@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PUPPETEER_SKIP_DOWNLOAD: "true"   # whatsapp-web.js's Chrome isn't needed for tests
+      HUSKY: "0"                        # npm ci skips installing the local git hooks
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -21,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run format:check       # catches unformatted code, e.g. a commit made with --no-verify
       - run: npm run lint:ci            # fails on any error, or if warnings rise above the count in package.json
       - run: npm test
       - run: npm run build
