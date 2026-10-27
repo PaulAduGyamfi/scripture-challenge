@@ -80,10 +80,12 @@ What that means in practice:
 - **Every PR** needs all seven checks green before it can merge. `install` is required too: if it fails,
   the others are *skipped*, and GitHub counts a skipped required check as passing. `deploy` isn't
   required, because it's skipped on pull requests.
-- **Dependabot's PRs, and anyone else's,** also need the maintainer's code-owner approval.
-- **The maintainer's own PRs**, including the ones agents open under the maintainer's account, can't be
-  approved by their author. They merge through the bypass ("bypass rules" on the merge button), and the
-  checks still have to be green.
+- **The maintainer's own PRs**, including the ones agents open under the maintainer's account: GitHub
+  doesn't ask for a code-owner review on them. PR #27 showed no review required and could merge
+  normally once the checks were green, with no bypass. If that ever changes, the bypass ("bypass rules"
+  on the merge button) is there, and the checks still have to be green.
+- **Dependabot's PRs, and anyone else's,** are expected to need the maintainer's code-owner approval.
+  TODO(owner): confirm on the first Dependabot PR opened or rebased after CODEOWNERS landed.
 - **Always use a merge commit.** Squash and rebase are allowed, but they change commit hashes, which
   breaks `.git-blame-ignore-revs`. TODO(owner): consider allowing only "Merge".
 
