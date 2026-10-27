@@ -62,29 +62,32 @@ Also, when they apply:
 
 ## 5. The `main` ruleset
 
-**Current state (checked 2026-10-27):** a ruleset named **"Protect main"** exists, but its
-enforcement is **disabled**, and `main` has no classic branch protection. So nothing stops a
-direct push, a force-push or a merge with failing tests right now. Its configured rules are:
-
-- deleting `main` is blocked, and force-pushes are blocked;
-- merges must go through a pull request with **1 approving review** and code-owner review;
-- the `test` status check must pass.
-
-As configured, enabling it would block the maintainer: GitHub doesn't let authors approve their
-own PRs, and code-owner review needs a `CODEOWNERS` file, which the repo doesn't have.
-
-**Recommended settings** (Settings → Rules → Rulesets → Protect main):
+**Current settings** (Settings → Rules → Rulesets → **Protect main**; read from the GitHub API on 2026-10-27):
 
 | Setting | Value |
 |---|---|
-| Enforcement status | **Active** |
-| Target | `main` |
-| Restrict deletions | On |
-| Block force pushes | On |
-| Require a pull request before merging | On, with **0** required approvals (or keep 1 and add yourself as a bypass actor "for pull requests only") |
-| Require review from Code Owners | Off, until a `CODEOWNERS` file exists |
-| Require status checks to pass | On, with **`install`, `typecheck`, `lint`, `format`, `test`, `build`**. Include `install`: if it fails, the others are *skipped*, and GitHub counts a skipped required check as passing. Don't add `deploy`: it's skipped on pull requests |
-| Allowed merge methods | Merge (what this repo uses) |
+| Enforcement | **Active**, on `main` |
+| Deletions, force-pushes | Blocked |
+| Pull request required | Yes. Nobody can push straight to `main` |
+| Required approvals | 0 |
+| Require review from Code Owners | **On**. `.github/CODEOWNERS` names the maintainer for every file |
+| Required status checks | **`install`, `typecheck`, `lint`, `format`, `test`, `build`, `security`**, all from GitHub Actions |
+| Bypass list | The maintainer, **for pull requests only** |
+| Allowed merge methods | Merge, squash, rebase |
+
+What that means in practice:
+
+- **Every PR** needs all seven checks green before it can merge. `install` is required too: if it fails,
+  the others are *skipped*, and GitHub counts a skipped required check as passing. `deploy` isn't
+  required, because it's skipped on pull requests.
+- **The maintainer's own PRs**, including the ones agents open under the maintainer's account: GitHub
+  doesn't ask for a code-owner review on them. PR #27 showed no review required and could merge
+  normally once the checks were green, with no bypass. If that ever changes, the bypass ("bypass rules"
+  on the merge button) is there, and the checks still have to be green.
+- **Dependabot's PRs, and anyone else's,** are expected to need the maintainer's code-owner approval.
+  TODO(owner): confirm on the first Dependabot PR opened or rebased after CODEOWNERS landed.
+- **Always use a merge commit.** Squash and rebase are allowed, but they change commit hashes, which
+  breaks `.git-blame-ignore-revs`. TODO(owner): consider allowing only "Merge".
 
 The `production` environment already requires a reviewer and only allows deploys from selected
 branches. Keep it that way: it's what makes deploys manual (step 10).
@@ -140,9 +143,9 @@ checks, on all files, not just the staged ones:
 - `npm run typecheck` and `npm test` (pre-push's checks);
 - `npm run build`.
 
-Deploys only run from `main` (§6), so code reaches the live bot only after CI has checked it.
-**But** the "Protect main" ruleset that would *require* these checks before merging is switched
-off (§5). Until it's on, check that CI is green before you merge.
+The ruleset (§5) makes these checks required, so a commit made with `--no-verify` still can't
+reach `main` until every check passes. Deploys only run from `main` (§6), so code reaches the live
+bot only after CI has checked it.
 
 ### CI and the server
 
