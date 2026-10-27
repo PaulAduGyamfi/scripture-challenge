@@ -157,8 +157,8 @@ and `git pull` doesn't run these hooks. To turn hooks off for a single command, 
 
 ## 8. AI review (advisory)
 
-`.github/workflows/claude-review.yml` runs Claude Code's `code-review` plugin on each pull request
-and posts its findings as **inline comments** on the PR. It checks against the AGENTS.md review
+`.github/workflows/claude-review.yml` runs Claude Code's `code-review` plugin on pull requests labelled
+`ai-review` and posts its findings as **inline comments** on the PR. It checks against the AGENTS.md review
 checklist (C1–C6), like a human reviewer.
 
 **It's advisory, and only that:**
@@ -169,13 +169,14 @@ checklist (C1–C6), like a human reviewer.
 - **The maintainer makes the merge decision**: read its comments, act on the ones that are right, and
   ignore the rest.
 
-**When it runs:**
+**When it runs:** only when asked, because a run costs about $0.45–0.60 and it doesn't post reliably yet
+(see the known issue below).
 
-- Once per PR, when the PR is opened, reopened or marked ready for review. **Not on every push**, to
-  keep cost down, so later pushes aren't re-reviewed automatically.
+- **Add the `ai-review` label to a PR** to start a review. It also runs when a labelled PR is reopened
+  or marked ready for review. **Not on every push**, so later pushes aren't re-reviewed automatically.
 - Not on draft PRs, which get reviewed when they're marked ready. Not on PRs from forks, because
   GitHub doesn't give fork runs the secret.
-- On Dependabot's PRs too, if the key is also a Dependabot secret (see setup).
+- On Dependabot's PRs too, once labelled (the key is also a Dependabot secret, see setup).
 - At most 25 turns and 15 minutes per run. A newer run on the same PR cancels an older one.
 - **A PR's own `.claude/` and `CLAUDE.md` changes don't apply to its own review.** The action treats
   the PR's code as untrusted and restores those (plus `.mcp.json` and `.husky`) from `main` before it
@@ -189,10 +190,11 @@ checklist (C1–C6), like a human reviewer.
 checklist (it reported "Issues: none" in its log), but the main session ended while its parallel
 reviewers were still running in the background, so nothing was posted. A green `claude-review` check
 means the job ran, **not** that the PR was reviewed. Check the PR's comments, and review it yourself
-regardless. TODO(owner): decide how to fix or replace it.
+regardless. Decided 2026-10-27: it's opt-in (the `ai-review` label) until this is fixed upstream or the
+plugin is replaced, so silent runs don't cost money on every PR.
 
-**To re-run it**, e.g. after pushing fixes: Actions → **Claude review** → the PR's run → **Re-run jobs**.
-Re-running doesn't happen on its own.
+**To re-run it**, e.g. after pushing fixes: remove the `ai-review` label and add it again. (Re-running the old
+job from the Actions tab reuses the old commit.)
 
 **Setup** (once, by the maintainer):
 
