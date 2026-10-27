@@ -177,10 +177,19 @@ checklist (C1–C6), like a human reviewer.
   GitHub doesn't give fork runs the secret.
 - On Dependabot's PRs too, if the key is also a Dependabot secret (see setup).
 - At most 25 turns and 15 minutes per run. A newer run on the same PR cancels an older one.
+- **A PR's own `.claude/` and `CLAUDE.md` changes don't apply to its own review.** The action treats
+  the PR's code as untrusted and restores those (plus `.mcp.json` and `.husky`) from `main` before it
+  runs, so hooks, settings and the AGENTS.md checklist take effect for reviews once they're merged.
 - **Not on a PR that changes `claude-review.yml` itself.** The action only runs when the workflow file is
   identical to the one on `main`, so a PR can't change the review (or leak its key) and have that
   version run. The run shows as successful with a "Workflow validation failed" warning. That's
   expected; review those PRs yourself.
+
+**Known issue (2026-10-27): it usually doesn't post yet.** On #30 and #32 the review ran and read the
+checklist (it reported "Issues: none" in its log), but the main session ended while its parallel
+reviewers were still running in the background, so nothing was posted. A green `claude-review` check
+means the job ran, **not** that the PR was reviewed. Check the PR's comments, and review it yourself
+regardless. TODO(owner): decide how to fix or replace it.
 
 **To re-run it**, e.g. after pushing fixes: Actions → **Claude review** → the PR's run → **Re-run jobs**.
 Re-running doesn't happen on its own.
