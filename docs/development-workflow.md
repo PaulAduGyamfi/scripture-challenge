@@ -45,7 +45,8 @@ Examples from this repo: `fix: Emoji Bible needs the story named, not the emoji 
 
 ## 4. Pull requests
 
-There's no PR template file yet. Every PR description has these sections (working rule 5):
+GitHub fills in [`.github/pull_request_template.md`](../.github/pull_request_template.md) for every new PR.
+Between them, the template and this list cover what every PR description needs (working rule 5):
 
 1. **What changed:** the change in a few bullets.
 2. **Why:** the reason, with a baseline audit ID (R-xx) when there is one.
