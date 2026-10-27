@@ -2,14 +2,15 @@
 # (code.claude.com/docs/en/github-actions). Advisory only: it isn't a required status check, it
 # can't approve, and the maintainer decides every merge (docs/development-workflow.md §8).
 #
-# Runs once per PR (opened, reopened, ready for review), not on every push, to control cost.
+# Opt-in, to control cost: runs only on PRs labelled "ai-review" (when the label is added, or when a
+# labelled PR is reopened or marked ready for review), never on every push.
 # Needs the Claude GitHub App on the repo (it posts the comments), and CLAUDE_REVIEW_API_KEY as an
 # Actions secret and, for Dependabot's PRs, as a Dependabot secret too.
 name: Claude review
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    types: [labeled, reopened, ready_for_review]
 
 # One review per PR at a time; a newer run cancels an older one
 concurrency:
@@ -18,7 +19,11 @@ concurrency:
 
 jobs:
   claude-review:
-    if: github.event.pull_request.draft == false
+    # Only labelled, non-draft PRs. On a "labeled" event, only when the label added is ai-review itself.
+    if: >-
+      github.event.pull_request.draft == false &&
+      contains(github.event.pull_request.labels.*.name, 'ai-review') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'ai-review')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # As in the docs example. The comments are posted with the Claude GitHub App's token, which the
