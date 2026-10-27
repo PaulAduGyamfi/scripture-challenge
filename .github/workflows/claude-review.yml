@@ -39,7 +39,16 @@ jobs:
           plugins: "code-review@claude-code-plugins"
           # --comment posts the findings as inline PR comments instead of only in the run log
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
-          # The action starts the inline-comment server only when --allowedTools names it
-          claude_args: '--max-turns 10 --allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # --allowedTools must name the inline-comment tool (the action only starts its server then) and
+          # everything the plugin uses: its own allowed-tools (plugins/code-review/commands/code-review.md
+          # in anthropics/claude-code), plus read-only file tools and Task for its parallel reviewers.
+          # With only the comment tool, the first review (#30) was refused 10 times and posted nothing.
+          # None of these can edit files, push or approve; gh pr comment only posts a comment.
+          claude_args: >-
+            --max-turns 25
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr list:*),Bash(gh pr comment:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Read,Grep,Glob,Task"
+          # Temporary, for one diagnostic run: prints the whole session (including any refused tool
+          # calls) to the run log, which is public on this repo. Remove once reviews work.
+          show_full_output: true
           # Dependabot isn't a write-access user, so it has to be allowed by name; no other bots are
           allowed_bots: "dependabot[bot]"
