@@ -10,6 +10,8 @@
     "start": "node dist/bot.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "oxlint src test .claude/hooks",
+    "lint:ci": "oxlint --max-warnings 5 src test .claude/hooks",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \".claude/hooks/*.mjs\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \".claude/hooks/*.mjs\"",
     "deploy": "./scripts/deploy.sh"
@@ -21,6 +23,7 @@
     "@types/node": "^26.6.3",
     "@types/papaparse": "^5.5.2",
     "@types/qrcode-terminal": "^0.12.2",
+    "oxlint": "1.90.0",
     "prettier": "3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

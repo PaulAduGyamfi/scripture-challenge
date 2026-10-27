@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "no-underscore-dangle": "warn",
+    "no-new": "warn",
+    "no-shadow": "warn"
+  },
+  "ignorePatterns": ["dist/**", "node_modules/**", "backups/**", ".wwebjs_auth/**", ".wwebjs_cache/**"]
+}
