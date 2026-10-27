@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint:ci            # fails on any error, or if warnings rise above the count in package.json
       - run: npm test
       - run: npm run build
 

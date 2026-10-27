@@ -18,10 +18,13 @@ small, reversible steps.
 | Typecheck | `npm run typecheck` (src and test) |
 | Test | `npm test` (offline: the AI, the sheet and WhatsApp are faked; no keys needed) |
 | Build | `npm run build` (compiles to `dist/`) |
+| Lint | `npm run lint` (oxlint; prints every error and warning) |
+| Lint, as CI runs it | `npm run lint:ci` (fails on any error, or if warnings rise above the `--max-warnings` count; lower that count when you fix one) |
+| Format | `npm run format` to rewrite, `npm run format:check` to check (Prettier; `src/`, `test/`, `.claude/hooks/`) |
 | Simulator | `npm run sim` (plays the game in the terminal; needs `ANTHROPIC_API_KEY` and `SHEET_CSV_URL`) |
 
 `npm run sim` reads and writes `state.json` in the current folder, so only run it in a separate
-copy of the project, never in the live server's folder. Lint and format aren't configured yet.
+copy of the project, never in the live server's folder.
 
 ## 3. Map
 
