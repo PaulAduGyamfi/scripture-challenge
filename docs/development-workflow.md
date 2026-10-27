@@ -13,7 +13,7 @@ How a change gets from an idea to the live bot. The rules agents follow while do
 | 4 | **Implementation on a branch** | Agent | The change is on a branch named as in §2, and the diff is limited to the task (working rule 2) |
 | 5 | **Tests** | Agent | Every behaviour change has a test that fails without it (AGENTS.md Testing 1); `npm run typecheck`, `npm test` and `npm run build` pass and the output is in the PR (working rule 4) |
 | 6 | **Evals** (AI changes only) | Agent | Any change to `src/ai.ts` or a prompt has an eval run with results in the PR (Testing 2). Evals don't exist yet: until they do, say so in the PR |
-| 7 | **CI** | GitHub Actions | The `test` job is green on the PR (install, typecheck, test, build) |
+| 7 | **CI** | GitHub Actions | All six check jobs are green on the PR: `install`, then `typecheck`, `lint`, `format`, `test` and `build` in parallel. `test` uploads a `coverage-summary` artifact |
 | 8 | **Review** | Maintainer | The diff has been read, the PR description is complete (§4), and every invariant it touches is cited |
 | 9 | **Merge** | Maintainer | Merged to `main` with a merge commit. Merging doesn't deploy |
 | 10 | **Manual approved deploy** | Maintainer | The deploy has been started from the Actions tab and approved in the `production` environment (§6) |
@@ -82,7 +82,7 @@ own PRs, and code-owner review needs a `CODEOWNERS` file, which the repo doesn't
 | Block force pushes | On |
 | Require a pull request before merging | On, with **0** required approvals (or keep 1 and add yourself as a bypass actor "for pull requests only") |
 | Require review from Code Owners | Off, until a `CODEOWNERS` file exists |
-| Require status checks to pass | On, with `test`. Don't add `deploy`: it's skipped on pull requests |
+| Require status checks to pass | On, with **`install`, `typecheck`, `lint`, `format`, `test`, `build`**. Include `install`: if it fails, the others are *skipped*, and GitHub counts a skipped required check as passing. Don't add `deploy`: it's skipped on pull requests |
 | Allowed merge methods | Merge (what this repo uses) |
 
 The `production` environment already requires a reviewer and only allows deploys from selected
@@ -95,7 +95,7 @@ branches. Keep it that way: it's what makes deploys manual (step 10).
 1. Pick a quiet time, never in the 10 minutes before a game (see the schedule in
    [architecture.md](architecture.md)). A restart then skips that game's post.
 2. Actions → **Tests and deploy** → **Run workflow** on `main`.
-3. When the `test` job passes, **Review deployments** → approve `production`.
+3. When all five checks (`typecheck`, `lint`, `format`, `test`, `build`) pass, **Review deployments** → approve `production`.
 
 **Observe** on the server after the deploy:
 
@@ -140,7 +140,7 @@ checks, on all files, not just the staged ones:
 - `npm run build`.
 
 Deploys only run from `main` (§6), so code reaches the live bot only after CI has checked it.
-**But** the "Protect main" ruleset that would *require* the `test` check before merging is switched
+**But** the "Protect main" ruleset that would *require* these checks before merging is switched
 off (§5). Until it's on, check that CI is green before you merge.
 
 ### CI and the server
