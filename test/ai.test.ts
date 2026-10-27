@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Fake the Anthropic SDK so tests never call the real API (or need a key)
 const create = vi.hoisted(() => {
@@ -9,7 +9,7 @@ vi.mock("@anthropic-ai/sdk", () => ({
   default: class { messages = { create }; },
 }));
 
-import { aiReadGuess, makeHint, celebrate, makeEmoji, judgeStoryGuess } from "../src/ai";
+import { aiReadGuess, makeHint, celebrate, makeEmoji, judgeStoryGuess, judgeRiddleGuess } from "../src/ai";
 
 const claudeSays = (text: string) =>
   create.mockResolvedValueOnce({ content: [{ type: "text", text }] });
@@ -118,5 +118,51 @@ describe("judgeStoryGuess", () => {
   it("counts an API failure as not a guess", async () => {
     create.mockRejectedValueOnce(new Error("overloaded"));
     expect(await judgeStoryGuess("the man in the whale", jonah)).toBe("not_a_guess");
+  });
+});
+
+describe("AI_JUDGING switch", () => {
+  const jonah = { story: "Jonah and the big fish", answers: ["jonah"], reference: "Jonah 1-2" };
+  const noah = { riddle: "I built a boat on dry land and waited for rain. Who am I?", answers: ["noah"] };
+  const PLAYER_TEXT = "the man who built the ark";
+
+  beforeEach(() => { vi.spyOn(console, "info").mockImplementation(() => {}); });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it.each(["off", "OFF", " Off "])("with AI_JUDGING=%j, both judges say not_a_guess without calling the AI", async value => {
+    vi.stubEnv("AI_JUDGING", value);
+    expect(await judgeStoryGuess(PLAYER_TEXT, jonah)).toBe("not_a_guess");
+    expect(await judgeRiddleGuess(PLAYER_TEXT, noah)).toBe("not_a_guess");
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("logs once per call that judging is off, without the player's message", async () => {
+    vi.stubEnv("AI_JUDGING", "off");
+    await judgeStoryGuess(PLAYER_TEXT, jonah);
+    await judgeRiddleGuess(PLAYER_TEXT, noah);
+    expect(console.info).toHaveBeenCalledTimes(2);
+    const logged = vi.mocked(console.info).mock.calls.flat().join(" ");
+    expect(logged).toContain("AI judging is off");
+    expect(logged).not.toContain(PLAYER_TEXT);
+  });
+
+  it("reads the switch on every call, not once at start", async () => {
+    vi.stubEnv("AI_JUDGING", "off");
+    expect(await judgeRiddleGuess(PLAYER_TEXT, noah)).toBe("not_a_guess");
+    vi.stubEnv("AI_JUDGING", "on");
+    claudeSays("correct");
+    expect(await judgeRiddleGuess(PLAYER_TEXT, noah)).toBe("correct");
+    expect(create).toHaveBeenCalledOnce();
+  });
+
+  it.each([["unset", undefined], ["on", "on"]])("judges as before when AI_JUDGING is %s", async (_, value) => {
+    vi.stubEnv("AI_JUDGING", value);
+    claudeSays("correct");
+    expect(await judgeStoryGuess(PLAYER_TEXT, jonah)).toBe("correct");
+    claudeSays("wrong");
+    expect(await judgeRiddleGuess(PLAYER_TEXT, noah)).toBe("wrong");
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[1]?.[0].messages[0].content).toBe(PLAYER_TEXT);
+    expect(console.info).not.toHaveBeenCalled();
   });
 });
