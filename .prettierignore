@@ -1,0 +1,11 @@
+# Build output and installed packages
+dist
+node_modules
+package-lock.json
+
+# Live data and the WhatsApp login: never rewrite these
+backups
+state.json
+state.json.tmp
+.wwebjs_auth
+.wwebjs_cache
