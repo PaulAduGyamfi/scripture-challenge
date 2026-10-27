@@ -1,0 +1,20 @@
+{
+    "permissions": {
+      "deny": [
+        "Read(./.env)",
+        "Read(./.env.*)",
+        "Read(./state.json)",
+        "Read(./backups/**)",
+        "Read(./.wwebjs_auth/**)",
+        "Bash(npm run deploy *)",
+        "Bash(ssh *)",
+        "Bash(scp *)",
+        "Bash(git push --force *)"
+      ],
+      "ask": [
+        "Bash(git push *)",
+        "Bash(npm install *)",
+        "Bash(npm uninstall *)"
+      ]
+    }
+  }
