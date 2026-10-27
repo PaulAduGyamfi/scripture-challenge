@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { env } from "./config";
+import { env, optionalEnv } from "./config";
 import { findBook } from "./game";
 import type { Guess, Riddle, Scripture, Story } from "./types";
 
@@ -91,7 +91,16 @@ export async function makeEmoji(story: string): Promise<string> {
 // or tricked AI can never hand out points by mistake.
 export type StoryVerdict = "correct" | "wrong" | "not_a_guess";
 
+// AI_JUDGING=off in .env turns both judges off: only the sheet's listed answers win.
+// Read on every call; never logs the player's message.
+function judgingOff(game: string): boolean {
+  if (optionalEnv("AI_JUDGING")?.toLowerCase() !== "off") return false;
+  console.info(`AI judging is off (AI_JUDGING=off): ${game} answer not sent to the AI`);
+  return true;
+}
+
 export async function judgeStoryGuess(message: string, story: Story): Promise<StoryVerdict> {
+  if (judgingOff("Emoji Bible")) return "not_a_guess";
   try {
     const out = await askClaude(
       "You judge answers in 'Emoji Bible', a church WhatsApp game where players name a Bible story from emoji. " +
@@ -119,6 +128,7 @@ export async function judgeStoryGuess(message: string, story: Story): Promise<St
 // Bible Riddle: does a free-form answer give the riddle's answer in other words ("the man who
 // built the ark" for Noah)? Like the story judge, anything unclear counts as not a guess.
 export async function judgeRiddleGuess(message: string, riddle: Riddle): Promise<StoryVerdict> {
+  if (judgingOff("Bible Riddle")) return "not_a_guess";
   try {
     const out = await askClaude(
       "You judge answers in 'Bible Riddle', a church WhatsApp game. " +
