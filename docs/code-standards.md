@@ -6,8 +6,10 @@ toward are in [architecture.md](architecture.md).
 
 ## 1. Keep files small
 
-- Aim for **400 lines or fewer** per file in `src/`. **500 is the ceiling**, and
+- Aim for **400 lines or fewer** per file in `src/` and `test/`. **500 is the ceiling**, and
   `test/file-size.test.ts` fails above it.
+- Test files that share a setup (fakes, mocks, a fresh state.json per test) import it from
+  `test/helpers/`, as the `core-*.test.ts` files do with `helpers/core-setup.ts`.
 - When a file grows past 400, split it by what the code is *for* (for example, the read-only
   replies live in `replies.ts` and the answer handlers in `answers.ts`), not by size alone.
 - Keep the public API stable when you split: `core.ts` re-exports what `bot.ts`, `sim.ts` and the
