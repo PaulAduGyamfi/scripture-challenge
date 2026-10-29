@@ -29,8 +29,14 @@ copy of the project, never in the live server's folder.
 ## 3. Map
 
 - `src/bot.ts`: the WhatsApp connection, command routing, admin gating, reply pacing, cron jobs, health check and restarts.
-- `src/core.ts`: the game: puzzles, scoring, points, the schedule (`SCHEDULE`), streaks, badges, leaderboards, every player-facing message, and the `inOrder` queue.
-- `src/game.ts`: pure matching logic: book names, references, acronyms, decoded words, story and riddle answers.
+- `src/core.ts`: the game flow: new puzzles, `handleMessage`, hints, reveals, the three extra games, and the `inOrder` queue. Re-exports everything `bot.ts` uses.
+- `src/answers.ts`: what a correct answer does: points, streaks, badges and the reply (called only inside `inOrder`).
+- `src/replies.ts`: the read-only replies: `!today`, leaderboards, `!me`, `!streak`, `!schedule`, `!help`, reminders.
+- `src/players.ts`: player records, season and week resets, rankings.
+- `src/format.ts`: shared message helpers (`Post`, `Reply`, `replyTo`, tags, times, references).
+- `src/schedule.ts`: the schedule (`SCHEDULE`) and `timeOf`.
+- `src/domain/`: pure rules, no I/O: `matching.ts` (book names, references, acronyms, decoded words, story and riddle answers), `scoring.ts` (points), `streaks.ts` (streaks, badges), `calendar.ts` (day and week keys), `review.ts` (which old verses can come back).
+- `src/game.ts`: re-exports `src/domain/matching.ts` for older imports.
 - `src/ai.ts`: every Claude call and prompt: reading messy guesses, hints, cheers, emoji clues, the Riddle and Emoji judges, the `AI_JUDGING` switch.
 - `src/sheet.ts`: downloading and validating the Google Sheet tabs (verses, Stories, Riddles), with the last good copy as fallback.
 - `src/state.ts`: the `state.json` schema (Zod), loading, atomic saving, and daily backups.
@@ -65,6 +71,7 @@ These must never be broken. A PR that has to break one says so in its descriptio
 4. When finished, run every check that exists (npm run typecheck, npm test, npm run build, plus lint and format once they're configured) and paste the results.
 5. List the files you changed and draft the pull request description: what changed, why, how it was verified, behaviour change yes/no, rollback.
 6. If something is unclear or a decision is mine to make, stop and ask instead of guessing.
+7. Follow [docs/code-standards.md](docs/code-standards.md): files ≤400 lines (500 ceiling), a pure `src/domain/`, one-way imports, behaviour-preserving refactors.
 
 ## 6. Testing
 

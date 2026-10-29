@@ -15,8 +15,8 @@ flowchart LR
   subgraph process["Node.js process"]
     BOT["bot.ts<br/>connection, commands,<br/>cron, health check"]
     SIM["sim.ts<br/>terminal simulator"]
-    CORE["core.ts<br/>game rules, scoring, messages,<br/>SCHEDULE, inOrder queue"]
-    GAME["game.ts<br/>pure matching"]
+    CORE["core.ts, answers.ts, replies.ts,<br/>players.ts, format.ts, schedule.ts<br/>game flow, messages, SCHEDULE, inOrder queue"]
+    GAME["domain/<br/>pure rules: matching, scoring,<br/>streaks, calendar"]
     AI["ai.ts<br/>prompts, Claude calls"]
     SHEET["sheet.ts<br/>CSV download + validation"]
     STATE["state.ts<br/>schema, load, save, backup"]
@@ -44,7 +44,7 @@ flowchart LR
 
 ### Daily schedule
 
-The source of truth is `SCHEDULE` in `src/core.ts`; `bot.ts` runs it with node-cron in the
+The source of truth is `SCHEDULE` in `src/schedule.ts`; `bot.ts` runs it with node-cron in the
 `TZ_NAME` time zone (default `America/New_York`). If you change one, change this table too.
 
 | Time | Cron | Job |
@@ -121,9 +121,9 @@ src/
 
 | Today | Target |
 |---|---|
-| `game.ts`, `types.ts` | `domain/` |
-| scoring, streak and badge rules, point constants in `core.ts` | `domain/` |
-| use cases, messages, `SCHEDULE`, `inOrder` in `core.ts` | `application/` |
+| `types.ts` (`game.ts` is now `domain/matching.ts`) | `domain/` |
+| scoring, streak and badge rules, point constants | done: `domain/scoring.ts`, `domain/streaks.ts`, `domain/calendar.ts` |
+| use cases, messages, `SCHEDULE`, `inOrder` in `core.ts`, `answers.ts`, `replies.ts`, `players.ts`, `format.ts`, `schedule.ts` | `application/` |
 | `ai.ts` | `ai/` |
 | `state.ts`, `sheet.ts`, `config.ts` | `infrastructure/` |
 | WhatsApp client, cron, health check in `bot.ts` | `infrastructure/`; `bot.ts` keeps only the wiring |
@@ -169,7 +169,7 @@ bot.ts, sim.ts  ──►  infrastructure/, ai/  ──►  application/  ──
 - **`ai/` and `infrastructure/`** import `application/` (to implement its ports) and `domain/` types.
 - **Only the entry points** import `infrastructure/` and `ai/`.
 
-Once the folders exist, a test will check these imports so a PR can't quietly break the rule.
+`test/domain-boundaries.test.ts` checks the `domain/` rule; the other layers get the same check once their folders exist.
 
 ## 3. What we deliberately don't do
 
