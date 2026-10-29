@@ -6,8 +6,8 @@ import type { State, Player } from "./state";
 // "🔥 3-day streak!" and any badges earned since `before`
 export function newsLines(p: Player, before: string[]): string {
   const lines: string[] = [];
-  if (p.streak >= 2) lines.push(`🔥 ${p.streak}-day streak!`);
-  for (const b of badgesOf(p)) if (!before.includes(b)) lines.push(`🎖️ New badge: ${b}!`);
+  if (p.streak >= 2) lines.push(`🔥 *${p.streak}-day streak!*`);
+  for (const b of badgesOf(p)) if (!before.includes(b)) lines.push(`🎖️ New badge: *${b}*`);
   return lines.length ? "\n\n" + lines.join("\n") : "";
 }
 

@@ -243,11 +243,11 @@ describe("hint after the reveal", () => {
     expect(await core.reveal()).toContain("Nobody got it today!");
 
     const hint = await core.hint();
-    expect(hint).toBe("💡 Extra hint (no more ⚡ speed bonus today): behest; lifelong");
+    expect(hint).toBe("💡 *Extra hint* _(no more ⚡ speed bonus today)_: behest; lifelong");
     expect(state.load()).toMatchObject({
       revealed: true,
       hintsGiven: 1,
-      hints: ["💡 Extra hint: behest; lifelong"],
+      hints: ["💡 *Extra hint:* behest; lifelong"],
     });
   });
 });

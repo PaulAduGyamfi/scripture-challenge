@@ -14,7 +14,7 @@ import {
   type Matched,
 } from "./domain/scoring";
 import { badgesOf, recordSolve } from "./domain/streaks";
-import { formatTime, fullRef, pick, riddleAnswer, tag, type Reply } from "./format";
+import { formatTime, pick, plural, riddleAnswer, tag, verseBlock, type Reply } from "./format";
 import { getPlayer, newsLines, ranked } from "./players";
 import * as state from "./state";
 import type { State, Review, EmojiGame, RiddleGame } from "./state";
@@ -65,15 +65,16 @@ export async function winToday(
   state.save(s);
 
   const rank = ranked(s, "season", sentAt).findIndex(r => r.id === senderId) + 1;
-  const bonusText = bonus ? ` + ⚡${bonus} speed bonus` : "";
   const shout = await cheer(senderName, formatRef(today));
   return {
     kind: "win",
     text:
-      `${shout}\n\n🥇 ${tag(senderId)} got it first in ⏱️ ${formatTime(minutes)}!\n` +
-      `🎯 ${ANSWER_LABEL[type]}: ${base}${bonusText} = ✨ ${points} points ✨\n\n` +
-      `📖 ${fullRef(today)}:\n"${today.text}"\n\n` +
-      `📊 Season total: ${p.points} points (#${rank} on the leaderboard) 🏆` +
+      `${shout}\n\n🥇 ${tag(senderId)} *got it first* in ⏱️ ${formatTime(minutes)}!\n\n` +
+      `🎯 ${ANSWER_LABEL[type]}: *${base}*\n` +
+      (bonus ? `⚡ Speed bonus: *+${bonus}*\n` : "") +
+      `✨ *${plural(points, "point")}*\n\n` +
+      `${verseBlock(today)}\n\n` +
+      `📊 Season total: *${plural(p.points, "point")}* (#${rank} on the leaderboard)` +
       newsLines(p, before),
     mentions: [senderId],
   };
@@ -90,8 +91,8 @@ export function onTrackAnswer(s: State, senderId: string, senderName: string, se
   return {
     kind: "onTrack",
     text:
-      `👍 ${tag(senderId)}, you're on the right track! +${ON_TRACK_POINTS} point. ` +
-      "Finish the decode or add the reference to win it 🏆",
+      `👍 ${tag(senderId)}, you're on the right track! *+${plural(ON_TRACK_POINTS, "point")}*\n` +
+      "_Finish the decode or add the reference to win it_ 🏆",
     mentions: [senderId],
   };
 }
@@ -119,12 +120,12 @@ export async function winReview(
   return {
     kind: "win",
     text:
-      `${shout}\n\n🔁 ${tag(senderId)} won the *Midday Review* in ⏱️ ${formatTime(minutes)}!\n` +
-      `🎯 ${ANSWER_LABEL[type]}: ✨ ${points} points ✨\n\n` +
-      `📖 ${fullRef(review.verse)}:\n"${review.verse.text}"\n\n` +
-      `📊 Season total: ${p.points} points` +
+      `${shout}\n\n🔁 ${tag(senderId)} *won the Midday Review* in ⏱️ ${formatTime(minutes)}!\n\n` +
+      `🎯 ${ANSWER_LABEL[type]}: *${plural(points, "point")}*\n\n` +
+      `${verseBlock(review.verse)}\n\n` +
+      `📊 Season total: *${plural(p.points, "point")}*` +
       (s.today && !s.winner && !s.revealed
-        ? "\n\n☀️ This morning's puzzle is still open! Send !today to see it"
+        ? "\n\n☀️ This morning's puzzle is still open!\n_Send !today to see it_"
         : ""),
     mentions: [senderId],
   };
@@ -150,11 +151,11 @@ export async function winEmoji(
   return {
     kind: "win",
     text:
-      `🎉 ${tag(senderId)} got it in ⏱️ ${formatTime(minutes)}! ${game.emoji}\n` +
+      `🎉 ${tag(senderId)} *got it* in ⏱️ ${formatTime(minutes)}! ${game.emoji}\n\n` +
       `😀 It's *${game.story}*` +
       (game.reference ? ` (📖 ${game.reference})` : "") +
       "\n" +
-      `✨ +${EMOJI_POINTS} points ✨` +
+      `✨ *+${plural(EMOJI_POINTS, "point")}*` +
       newsLines(p, before),
     mentions: [senderId],
   };
@@ -180,11 +181,11 @@ export function winRiddle(
   return {
     kind: "win",
     text:
-      `🧩 ${tag(senderId)} solved the riddle in ⏱️ ${formatTime(minutes)}!\n` +
+      `🧩 ${tag(senderId)} *solved the riddle* in ⏱️ ${formatTime(minutes)}!\n\n` +
       `💡 It's *${riddleAnswer(riddle)}*` +
       (riddle.reference ? ` (📖 ${riddle.reference})` : "") +
       "\n" +
-      `✨ +${RIDDLE_POINTS} points ✨` +
+      `✨ *+${plural(RIDDLE_POINTS, "point")}*` +
       newsLines(p, before),
     mentions: [senderId],
   };
@@ -197,7 +198,7 @@ export function lateAnswer(s: State, senderId: string, senderName: string, sentA
   if (!winner || !s.today || senderId === winner.id || s.lateSolvers.includes(senderId)) return null;
   s.lateSolvers.push(senderId);
   const spot = s.lateSolvers.length;
-  const firstBy = `${tag(winner.id)} got it first today 🏃💨`;
+  const firstBy = `🏃💨 ${tag(winner.id)} got it first today`;
 
   const p = getPlayer(s, senderId, senderName, sentAt);
   const before = badgesOf(p);
@@ -208,7 +209,7 @@ export function lateAnswer(s: State, senderId: string, senderName: string, sentA
     return {
       kind: "late",
       text:
-        `✅ Correct, ${tag(senderId)}! 👏 All ${LATE_SPOTS} bonus spots are taken today. ${firstBy}` +
+        `✅ Correct, ${tag(senderId)}! 👏 All ${LATE_SPOTS} bonus spots are taken today.\n${firstBy}` +
         newsLines(p, before),
       mentions: [senderId, winner.id],
     };
@@ -220,7 +221,7 @@ export function lateAnswer(s: State, senderId: string, senderName: string, sentA
   return {
     kind: "late",
     text:
-      `✅ Correct, ${tag(senderId)}! +${LATE_POINTS} point (bonus spot ${spot} of ${LATE_SPOTS}) 👏 ${firstBy}` +
+      `✅ Correct, ${tag(senderId)}! *+${plural(LATE_POINTS, "point")}* (bonus spot ${spot} of ${LATE_SPOTS}) 👏\n${firstBy}` +
       newsLines(p, before),
     mentions: [senderId, winner.id],
   };

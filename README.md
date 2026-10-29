@@ -10,12 +10,12 @@ A daily Bible verse challenge for church WhatsApp groups. Every morning the bot 
 - 7 scheduled posts a day, judged and scored automatically
 
 ```
-☀️ Good morning! Today's scripture:
+☀️ *Good morning! Today's scripture*
 
 📜 *TLIMS; ISNW*
 
-💬 Reply with the reference, the decoded words, or both for the most points! 🎯
-🏆 First correct answer wins! ⏱️ Go go go! 🚀
+💬 Reply with the reference, the decoded words, or both for the most points 🎯
+🏆 First correct answer wins! ⏱️ Go go go!
 ```
 
 > Psalm 23:1, "The LORD is my shepherd; I shall not want."

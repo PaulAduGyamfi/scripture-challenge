@@ -62,8 +62,8 @@ describe("Midday Review", () => {
     await core.newReview();
     const reply = await core.handleMessage(AMA, "Ama", reviewRef(), TWO_PM + 4 * MIN);
     expect(reply?.kind).toBe("win");
-    expect(textOf(reply)).toContain("@111 won the *Midday Review* in ⏱️ 4 min");
-    expect(textOf(reply)).toContain("Reference: ✨ 3 points ✨");
+    expect(textOf(reply)).toContain("@111 *won the Midday Review* in ⏱️ 4 min");
+    expect(textOf(reply)).toContain("Reference: *3 points*");
     expect(textOf(reply)).toContain("This morning's puzzle is still open");
     expect(state.load().scores[AMA]).toMatchObject({ points: 3, wins: 0, streak: 0 });
     expect(state.load().review).toMatchObject({ closed: true, winner: { id: AMA } });
@@ -102,7 +102,7 @@ describe("Midday Review", () => {
     withHistory();
     await core.newReview();
     const ref = reviewRef();
-    expect(await core.closeReview()).toContain(`Nobody got it 😮 It was 📖 ${ref}`);
+    expect(await core.closeReview()).toContain(`Nobody got it 😮 It was:\n\n📖 *${ref}*`);
     expect(await core.closeReview()).toBeNull();
     expect(await core.handleMessage(AMA, "Ama", ref, TWO_PM + 4 * 60 * MIN)).toBeNull();
   });
@@ -166,7 +166,7 @@ describe("Emoji Bible", () => {
     await postGame();
     const reply = await core.handleMessage(AMA, "Ama", "is it jonah??", SEVEN_PM + 3 * MIN);
     expect(reply).toMatchObject({ kind: "win", mentions: [AMA] });
-    expect(textOf(reply)).toContain("@111 got it in ⏱️ 3 min!");
+    expect(textOf(reply)).toContain("@111 *got it* in ⏱️ 3 min!");
     expect(textOf(reply)).toContain("It's *Jonah and the big fish* (📖 Jonah 1-2)");
     expect(state.load().scores[AMA]).toMatchObject({ points: 2, emojiWins: 1, wins: 0 });
   });
@@ -279,7 +279,7 @@ describe("Emoji Bible", () => {
     state.save(s);
     await postGame();
     expect(textOf(await core.handleMessage(AMA, "Ama", "jonah", SEVEN_PM + MIN))).toContain(
-      "🎖️ New badge: 😀 Emoji Master!"
+      "🎖️ New badge: *😀 Emoji Master*"
     );
   });
 });
@@ -301,7 +301,7 @@ describe("Bible Riddle", () => {
     const text = await postRiddle();
     expect(text).toContain("🧩 *Bible Riddle*");
     expect(text).toContain("I built a boat on dry land");
-    expect(text).toContain("3 points! Closes at 12 PM");
+    expect(text).toContain("*3 points*!\n⏳ Closes at 12 PM");
     expect(text?.toLowerCase()).not.toContain("noah");
   });
 
@@ -309,7 +309,7 @@ describe("Bible Riddle", () => {
     await postRiddle();
     const reply = await core.handleMessage(AMA, "Ama", "Noah!", TEN_AM + 4 * MIN);
     expect(reply).toMatchObject({ kind: "win", mentions: [AMA] });
-    expect(textOf(reply)).toContain("@111 solved the riddle in ⏱️ 4 min!");
+    expect(textOf(reply)).toContain("@111 *solved the riddle* in ⏱️ 4 min!");
     expect(textOf(reply)).toContain("It's *Noah* (📖 Genesis 6-9)");
     expect(state.load().scores[AMA]).toMatchObject({ points: 3, riddleWins: 1, wins: 0 });
     expect(state.load().riddle?.closed).toBe(true);
@@ -381,7 +381,7 @@ describe("Bible Riddle", () => {
     expect(core.schedule()).not.toContain("Bible Riddle");
     expect(core.reminder("riddle")).toBeNull();
     vi.stubEnv("RIDDLES_CSV_URL", "https://example.test/riddles.csv");
-    expect(core.schedule()).toContain("🧩 10 AM: Bible Riddle, until 12 PM");
+    expect(core.schedule()).toContain("🧩 *10 AM*: Bible Riddle, until 12 PM");
     expect(core.reminder("riddle")).toContain("10 AM, in 10 minutes");
     vi.unstubAllEnvs();
   });

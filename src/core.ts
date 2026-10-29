@@ -16,7 +16,7 @@ import { dayKey } from "./domain/calendar";
 import { oldVerses, REVIEW_MIN_POOL } from "./domain/review";
 import { EMOJI_POINTS, REVIEW_POINTS, RIDDLE_POINTS } from "./domain/scoring";
 import { lateAnswer, onTrackAnswer, winEmoji, winReview, winRiddle, winToday } from "./answers";
-import { fullRef, pick, puzzleOf, riddleAnswer, type Reply } from "./format";
+import { pick, plural, puzzleOf, riddleAnswer, verseBlock, type Reply } from "./format";
 import { when } from "./schedule";
 
 // bot.ts, sim.ts and the tests use everything through core
@@ -75,10 +75,10 @@ function pickPuzzle(all: Scripture[]): string {
   if (s.review) s.review.closed = true; // in case its closing time was missed
   state.save(s);
 
-  const hintLine = chosen.hint ? `\n\n💡 Hint: ${chosen.hint}` : "";
+  const hintLine = chosen.hint ? `\n\n💡 *Hint:* ${chosen.hint}` : "";
   return (
-    `☀️ Good morning! Today's scripture:\n\n📜 *${puzzleOf(chosen)}*${hintLine}\n\n` +
-    `💬 Reply with the reference, the decoded words, or both for the most points! 🎯\n🏆 First correct answer wins! ⏱️ Go go go! 🚀`
+    `☀️ *Good morning! Today's scripture*\n\n📜 *${puzzleOf(chosen)}*${hintLine}\n\n` +
+    `💬 Reply with the reference, the decoded words, or both for the most points 🎯\n🏆 First correct answer wins! ⏱️ Go go go!`
   );
 }
 
@@ -173,9 +173,9 @@ export async function hint({ evenIfSolved = false } = {}): Promise<string | null
   if (!s || !today) return null;
   const line =
     s.hintsGiven === 1 // AI writes the hint outside the queue
-      ? "💡 Extra hint: " +
+      ? "💡 *Extra hint:* " +
         (await makeHint(today).catch(() => `the first word is "${today.clue.split(/\s+/)[0] ?? ""}"`))
-      : `🔦 Last hint: it's in the book of 📘 ${today.book}!`;
+      : `🔦 *Last hint:* it's in the book of 📘 *${today.book}*!`;
 
   await inOrder(async () => {
     // remember it for !today
@@ -185,7 +185,7 @@ export async function hint({ evenIfSolved = false } = {}): Promise<string | null
     state.save(now);
   });
   return s.hintsGiven === 1
-    ? line.replace("Extra hint:", "Extra hint (no more ⚡ speed bonus today):")
+    ? line.replace("*Extra hint:*", "*Extra hint* _(no more ⚡ speed bonus today)_:")
     : line;
 }
 
@@ -195,7 +195,7 @@ export function reveal(): Promise<string | null> {
     if (!s.today || s.winner) return null;
     s.revealed = true;
     state.save(s);
-    return `😮 Nobody got it today! It was 📖 ${fullRef(s.today)}:\n\n"${s.today.text}"\n\n🙏 Meditate on it and come back tomorrow! 💪`;
+    return `😮 *Nobody got it today!* It was:\n\n${verseBlock(s.today)}\n\n🙏 _Meditate on it and come back tomorrow!_ 💪`;
   });
 }
 
@@ -226,9 +226,9 @@ export async function newReview(): Promise<string | null> {
 
     const morningOpen = s.today && !s.winner && !s.revealed;
     return (
-      `🔁 *Midday Review* 🧠\nA verse we've had before. Do you remember it?\n\n📜 *${puzzleOf(chosen)}*\n\n` +
-      `🎯 First correct answer wins ${REVIEW_POINTS.both} points! Closes at ${when("closeReview")} ⏳` +
-      (morningOpen ? "\n☀️ This morning's puzzle is still open too. Send !today to see it" : "")
+      `🔁 *Midday Review*\nA verse we've had before. Do you remember it? 🧠\n\n📜 *${puzzleOf(chosen)}*\n\n` +
+      `🎯 First correct answer wins *${plural(REVIEW_POINTS.both, "point")}*!\n⏳ Closes at ${when("closeReview")}` +
+      (morningOpen ? "\n\n☀️ This morning's puzzle is still open too.\n_Send !today to see it_" : "")
     );
   });
 }
@@ -249,8 +249,8 @@ export async function newRiddle(): Promise<string | null> {
     s.riddlesUsed = [...(startOver ? [] : s.riddlesUsed), chosen.riddle];
     state.save(s);
     return (
-      `🧩 *Bible Riddle* 🤔\n\n${chosen.riddle}\n\n` +
-      `🎯 First right answer wins ${RIDDLE_POINTS} points! Closes at ${when("closeRiddle")} ⏳`
+      `🧩 *Bible Riddle*\n\n${chosen.riddle} 🤔\n\n` +
+      `🎯 First right answer wins *${plural(RIDDLE_POINTS, "point")}*!\n⏳ Closes at ${when("closeRiddle")}`
     );
   });
 }
@@ -264,9 +264,9 @@ export function closeRiddle(): Promise<string | null> {
     r.closed = true;
     state.save(s);
     return (
-      `🧩 Bible Riddle closed! Nobody got it 😮\nThe answer was *${riddleAnswer(r)}*` +
+      `🧩 *Bible Riddle closed!* Nobody got it 😮\nThe answer was *${riddleAnswer(r)}*` +
       (r.reference ? ` (📖 ${r.reference})` : "") +
-      `. New riddle tomorrow at ${when("riddle")}! 🙌`
+      `\n\n_New riddle tomorrow at ${when("riddle")}!_ 🙌`
     );
   });
 }
@@ -288,9 +288,9 @@ export async function newEmojiGame(): Promise<string | null> {
     s.storiesUsed = [...(startOver ? [] : s.storiesUsed), chosen.story];
     state.save(s);
     return (
-      `😀 *Emoji Bible* 🎬\nWhich Bible story is this?\n\n${emoji}\n\n` +
-      `🎯 Name the story (who or where, not what the emoji show)! First right answer wins ${EMOJI_POINTS} points. ` +
-      `Closes at ${when("closeEmoji")} ⏳`
+      `😀 *Emoji Bible*\nWhich Bible story is this? 🎬\n\n${emoji}\n\n` +
+      `🎯 Name the story _(who or where, not what the emoji show)_!\n` +
+      `First right answer wins *${plural(EMOJI_POINTS, "point")}*.\n⏳ Closes at ${when("closeEmoji")}`
     );
   });
 }
@@ -304,9 +304,9 @@ export function closeEmojiGame(): Promise<string | null> {
     g.closed = true;
     state.save(s);
     return (
-      `😀 Emoji Bible closed! Nobody got it 😮\n${g.emoji} was *${g.story}*` +
+      `😀 *Emoji Bible closed!* Nobody got it 😮\n${g.emoji} was *${g.story}*` +
       (g.reference ? ` (📖 ${g.reference})` : "") +
-      `. See you tomorrow at ${when("emoji")}! 🙌`
+      `\n\n_See you tomorrow at ${when("emoji")}!_ 🙌`
     );
   });
 }
@@ -320,9 +320,9 @@ export function closeReview(): Promise<string | null> {
     state.save(s);
     const morningOpen = s.today && !s.winner && !s.revealed;
     return (
-      `🔁 Midday Review closed! Nobody got it 😮 It was 📖 ${fullRef(r.verse)}:\n\n"${r.verse.text}"` +
+      `🔁 *Midday Review closed!* Nobody got it 😮 It was:\n\n${verseBlock(r.verse)}` +
       (morningOpen
-        ? `\n\n☀️ This morning's puzzle is still open until ${when("reveal")}. Send !today to see it 💪`
+        ? `\n\n☀️ This morning's puzzle is still open until ${when("reveal")}.\n_Send !today to see it_ 💪`
         : "")
     );
   });
