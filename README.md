@@ -2,6 +2,13 @@
 
 A daily Bible verse challenge for church WhatsApp groups. Every morning the bot posts a verse as an acronym, and members race to name the reference, decode the words, or both.
 
+**In production.** Running in a real church WhatsApp group since October 2026.
+
+- **44 people** have posted in the group
+- **~40 player messages a day** on game days (busiest: 112)
+- **6–18 different people** posting on a typical day
+- 7 scheduled posts a day, judged and scored automatically
+
 ```
 ☀️ Good morning! Today's scripture:
 
