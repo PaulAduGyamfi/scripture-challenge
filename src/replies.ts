@@ -14,7 +14,7 @@ import {
   SPEED_BONUS,
 } from "./domain/scoring";
 import { badgesOf, streakNow } from "./domain/streaks";
-import { formatTime, fullRef, puzzleOf, riddleAnswer, tag, type Post } from "./format";
+import { formatTime, fullRef, plural, puzzleOf, riddleAnswer, tag, type Post } from "./format";
 import { ranked, type Ranked } from "./players";
 import { when } from "./schedule";
 import * as state from "./state";
@@ -43,7 +43,7 @@ function riddleStatus(s: State): Post | null {
     };
   if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was *${riddleAnswer(r)}*`, mentions: [] };
   return {
-    text: `${head}\n⏳ Open until ${when("closeRiddle")}: first right answer wins ${RIDDLE_POINTS} points!`,
+    text: `${head}\n⏳ Open until ${when("closeRiddle")}: first right answer wins *${plural(RIDDLE_POINTS, "point")}*!`,
     mentions: [],
   };
 }
@@ -57,7 +57,7 @@ function emojiStatus(s: State): Post | null {
     return { text: `${head}\n✅ Won by ${tag(g.winner.id)}: it was *${g.story}*`, mentions: [g.winner.id] };
   if (g.closed) return { text: `${head}\n🌙 Nobody got it. It was *${g.story}*`, mentions: [] };
   return {
-    text: `${head}\n⏳ Open until ${when("closeEmoji")}: name the story for ${EMOJI_POINTS} points!`,
+    text: `${head}\n⏳ Open until ${when("closeEmoji")}: name the story for *${plural(EMOJI_POINTS, "point")}*!`,
     mentions: [],
   };
 }
@@ -73,9 +73,9 @@ function reviewStatus(s: State): Post | null {
       mentions: [r.winner.id],
     };
   }
-  if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was 📖 ${fullRef(r.verse)}`, mentions: [] };
+  if (r.closed) return { text: `${head}\n🌙 Nobody got it. It was 📖 *${fullRef(r.verse)}*`, mentions: [] };
   return {
-    text: `${head}\n⏳ Open until ${when("closeReview")}: first correct answer wins ${REVIEW_POINTS.both} points!`,
+    text: `${head}\n⏳ Open until ${when("closeReview")}: first correct answer wins *${plural(REVIEW_POINTS.both, "point")}*!`,
     mentions: [],
   };
 }
@@ -85,12 +85,12 @@ function morningStatus(s: State): Post {
   if (!v) return { text: `😴 No puzzle yet. The next one comes out at ${when("puzzle")} ☀️`, mentions: [] };
 
   const lines = [`📜 Today's scripture: *${puzzleOf(v)}*`];
-  if (v.hint) lines.push(`💡 Hint: ${v.hint}`);
+  if (v.hint) lines.push(`💡 *Hint:* ${v.hint}`);
   lines.push(...s.hints);
   lines.push("");
 
   if (s.revealed) {
-    lines.push(`🌙 Nobody got it. It was 📖 ${fullRef(v)}. A new one comes at ${when("puzzle")} ☀️`);
+    lines.push(`🌙 Nobody got it. It was 📖 *${fullRef(v)}*.\n_A new one comes at ${when("puzzle")}_ ☀️`);
     return { text: lines.join("\n"), mentions: [] };
   }
   if (!s.winner) {
@@ -101,8 +101,8 @@ function morningStatus(s: State): Post {
   lines.push(`✅ Solved by ${tag(s.winner.id)} in ⏱️ ${formatTime(s.winner.minutes)}! 🎉`);
   lines.push(
     left > 0
-      ? `👏 ${left} of ${LATE_SPOTS} bonus spots left: answer correctly for +${LATE_POINTS}`
-      : `👏 All ${LATE_SPOTS} bonus spots are taken. Try tomorrow's! 🙏`
+      ? `👏 ${left} of ${LATE_SPOTS} bonus spots left: answer correctly for *+${LATE_POINTS}*`
+      : `👏 All ${LATE_SPOTS} bonus spots are taken.\n_Try tomorrow's!_ 🙏`
   );
   return { text: lines.join("\n"), mentions: [s.winner.id] };
 }
@@ -116,14 +116,12 @@ const HONORABLE = 5; // ranks 11-15, listed under it
 export function leaderboard(kind: "season" | "week" = "season", askerId?: string): Post {
   const all = ranked(state.load(), kind);
   const title =
-    kind === "week"
-      ? "📅 This week's leaderboard 🔥"
-      : `🏆 ${new Date().getFullYear()} season leaderboard 🏆`;
-  if (all.length === 0) return { text: `${title}\n🤷 No points yet. Be the first! 🚀`, mentions: [] };
+    kind === "week" ? "📅 *This week's leaderboard*" : `🏆 *${new Date().getFullYear()} season leaderboard*`;
+  if (all.length === 0) return { text: `${title}\n\n🤷 No points yet. Be the first! 🚀`, mentions: [] };
 
   const row = (p: Ranked, i: number) =>
-    `${MEDALS[i] ?? `${i + 1}.`} ${tag(p.id)}: ${p.score} pts` +
-    (kind === "season" ? ` (🏅 ${p.wins} wins)` : "");
+    `${MEDALS[i] ?? `${i + 1}.`} ${tag(p.id)}  *${plural(p.score, "pt")}*` +
+    (kind === "season" ? ` · ${plural(p.wins, "win")}` : "");
   const top = all.slice(0, TOP);
   const honorable = all.slice(TOP, TOP + HONORABLE);
   const lines = [title, "", ...top.map(row)];
@@ -132,7 +130,10 @@ export function leaderboard(kind: "season" | "week" = "season", askerId?: string
 
   const mine = askerId ? all.findIndex(p => p.id === askerId) : -1;
   if (mine >= TOP + HONORABLE) {
-    lines.push("", `📍 You're #${mine + 1} with ${all[mine]?.score} pts. Keep going, you'll climb! 💪`);
+    lines.push(
+      "",
+      `📍 You're #${mine + 1} with *${plural(all[mine]?.score ?? 0, "pt")}*.\n_Keep going, you'll climb!_ 💪`
+    );
   }
   return { text: lines.join("\n"), mentions: [...top, ...honorable].map(p => p.id) };
 }
@@ -144,36 +145,37 @@ export function myStats(senderId: string): Post {
   const p = board[i];
   if (!p) {
     return {
-      text: `🌱 ${tag(senderId)}, no points yet this season. Tomorrow could be your day! 💪`,
+      text: `🌱 ${tag(senderId)}, no points yet this season.\n_Tomorrow could be your day!_ 💪`,
       mentions: [senderId],
     };
   }
   const badges = badgesOf(p);
   const text =
-    `📊 ${tag(p.id)}: ⭐ ${p.points} pts, 🏅 ${p.wins} wins, 🏆 #${i + 1} this season.\n` +
+    `📊 ${tag(p.id)} · *#${i + 1} this season*\n` +
+    `⭐ *${plural(p.points, "point")}* · 🏅 ${plural(p.wins, "win")}\n` +
     `⚡ Fastest solve: ${p.fastestMin === null ? "none yet" : formatTime(p.fastestMin)}\n` +
     streakLine(streakNow(s, p), p.bestStreak) +
-    (badges.length ? `\n🎖️ Badges: ${badges.join(", ")}` : "");
+    (badges.length ? `\n🎖️ *Badges:* ${badges.join(", ")}` : "");
   return { text, mentions: [p.id] };
 }
 
 const streakLine = ({ current, onTheLine }: ReturnType<typeof streakNow>, best: number) =>
-  `🔥 Streak: ${current} days (best ${best})` +
-  (onTheLine ? `\n⏳ Your ${onTheLine}-day streak is on the line. Solve today's puzzle to keep it!` : "");
+  `🔥 Streak: *${plural(current, "day")}* (best ${best})` +
+  (onTheLine ? `\n⏳ Your ${onTheLine}-day streak is on the line.\n_Solve today's puzzle to keep it!_` : "");
 
 export function streak(senderId: string): Post {
   const s = state.load();
   const p = s.scores[senderId];
   if (!p || p.bestStreak === 0) {
-    return { text: "🌱 No streak yet. Solve today's puzzle to start one! 🔥", mentions: [] };
+    return { text: "🌱 No streak yet.\n_Solve today's puzzle to start one!_ 🔥", mentions: [] };
   }
   const { current, onTheLine } = streakNow(s, p);
   const text =
     current > 0
-      ? `🔥 ${tag(senderId)} is on a ${current}-day streak! (best: ${p.bestStreak}) Keep eating the Word! 📖`
+      ? `🔥 ${tag(senderId)} is on a ${current}-day streak! (best: ${p.bestStreak})\n_Keep eating the Word!_ 📖`
       : onTheLine > 0
-        ? `⏳ ${tag(senderId)}, your ${onTheLine}-day streak is on the line! (best: ${p.bestStreak}) Solve today's puzzle to keep it going 🔥`
-        : `💤 ${tag(senderId)}'s streak has ended (best: ${p.bestStreak}). Solve today's puzzle to start again! 💪`;
+        ? `⏳ ${tag(senderId)}, your ${onTheLine}-day streak is on the line! (best: ${p.bestStreak})\n_Solve today's puzzle to keep it going_ 🔥`
+        : `💤 ${tag(senderId)}'s streak has ended (best: ${p.bestStreak}).\n_Solve today's puzzle to start again!_ 💪`;
   return { text, mentions: [senderId] };
 }
 
@@ -191,7 +193,7 @@ const hasRiddles = () => Boolean(optionalEnv("RIDDLES_CSV_URL"));
 // 10 minutes before each game: a heads-up. null when that game won't run today.
 export function reminder(game: "puzzle" | "riddle" | "review" | "emoji"): string | null {
   if (game === "puzzle")
-    return `⏰ Today's scripture drops at ${when("puzzle")}, in 10 minutes! Get ready 📖🔥`;
+    return `⏰ *Today's scripture* drops at ${when("puzzle")}, in 10 minutes! Get ready 📖🔥`;
   if (game === "riddle") {
     if (!hasRiddles()) return null;
     return `⏰ *Bible Riddle* at ${when("riddle")}, in 10 minutes! 🧩🤔`;
@@ -213,30 +215,30 @@ export function schedule(): string {
   return [
     "🗓️ *Daily schedule*" + (zone ? ` (${zone})` : ""),
     "",
-    `☀️ ${when("puzzle")}: Morning puzzle`,
-    ...(hasRiddles() ? [`🧩 ${when("riddle")}: Bible Riddle, until ${when("closeRiddle")}`] : []),
-    `💡 ${when("hint")}: Extra hint (the speed bonus ends)`,
-    `🔁 ${when("review")}: Midday Review, until ${when("closeReview")}` +
+    `☀️ *${when("puzzle")}*: Morning puzzle`,
+    ...(hasRiddles() ? [`🧩 *${when("riddle")}*: Bible Riddle, until ${when("closeRiddle")}`] : []),
+    `💡 *${when("hint")}*: Extra hint (the speed bonus ends)`,
+    `🔁 *${when("review")}*: Midday Review, until ${when("closeReview")}` +
       (reviewSoon ? " _(starting soon)_" : ""),
-    `🔦 ${when("bookHint")}: Last hint: the book`,
-    ...(hasEmojiBible() ? [`😀 ${when("emoji")}: Emoji Bible, until ${when("closeEmoji")}`] : []),
-    `🌙 ${when("reveal")}: The answer, if nobody got it`,
+    `🔦 *${when("bookHint")}*: Last hint: the book`,
+    ...(hasEmojiBible() ? [`😀 *${when("emoji")}*: Emoji Bible, until ${when("closeEmoji")}`] : []),
+    `🌙 *${when("reveal")}*: The answer, if nobody got it`,
     "",
-    `📅 Sundays ${when("weeklyWrap")}: Weekly standings`,
-    `🏆 Dec 31, ${when("seasonFinale")}: Season finale`,
+    `📅 *Sundays ${when("weeklyWrap")}*: Weekly standings`,
+    `🏆 *Dec 31, ${when("seasonFinale")}*: Season finale`,
   ].join("\n");
 }
 
 // Shared by !help and !commands, so the two lists never drift apart
 const COMMANDS = [
-  "• !today: today's puzzles, hints, and who solved them 📜",
-  "• !schedule: what happens at what time 🗓️",
-  "• !leaderboard: season standings 🏆",
-  "• !week: this week's standings 📅",
-  "• !me: your points, streak and badges 📊",
-  "• !streak: your current streak 🔥",
-  "• !commands: just this list 📋",
-  "• !help: rules, points and commands 📖",
+  "- *!today*: today's puzzles, hints, and who solved them",
+  "- *!schedule*: what happens at what time",
+  "- *!leaderboard*: season standings",
+  "- *!week*: this week's standings",
+  "- *!me*: your points, streak and badges",
+  "- *!streak*: your current streak",
+  "- *!commands*: just this list",
+  "- *!help*: rules, points and commands",
 ];
 
 export function commands(): string {
@@ -246,21 +248,24 @@ export function commands(): string {
 export function help(): string {
   const reviewNote = reviewNotYet() ? " _(starting soon)_" : "";
   return [
-    "📖 *Scripture Challenge* 🙌",
+    "📖 *Scripture Challenge*",
     "",
     `☀️ Every day at ${when("puzzle")} I post a verse as an acronym, like *TLIMS; ISNW*.`,
     "💬 Reply with the reference, the decoded words, or both. First right answer wins!",
     `💡 Hints at ${when("hint")} and ${when("bookHint")} · answer at ${when("reveal")}`,
     "",
     "🎯 *Points*",
-    `• Reference + words: ${ANSWER_POINTS.both}  ·  Reference: ${ANSWER_POINTS.reference}  ·  Words: ${ANSWER_POINTS.decoded}`,
-    `• ⚡ Up to +${SPEED_BONUS[0].bonus} for speed, before the first hint`,
-    `• 👍 +${ON_TRACK_POINTS} for the start of the verse  ·  ✅ +${LATE_POINTS} for the next ${LATE_SPOTS} after the winner`,
+    `- Reference + words: *${ANSWER_POINTS.both}*`,
+    `- Reference only: *${ANSWER_POINTS.reference}*`,
+    `- Words only: *${ANSWER_POINTS.decoded}*`,
+    `- ⚡ Up to *+${SPEED_BONUS[0].bonus}* for speed, before the first hint`,
+    `- 👍 *+${ON_TRACK_POINTS}* for the start of the verse`,
+    `- ✅ *+${LATE_POINTS}* for the next ${LATE_SPOTS} after the winner`,
     "",
-    "🎮 *More games* (first right answer wins)",
-    ...(hasRiddles() ? [`• 🧩 ${when("riddle")} Bible Riddle: ${RIDDLE_POINTS} pts`] : []),
-    `• 🔁 ${when("review")} Midday Review: ${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} pts${reviewNote}`,
-    ...(hasEmojiBible() ? [`• 😀 ${when("emoji")} Emoji Bible: ${EMOJI_POINTS} pts`] : []),
+    "🎮 *More games* _(first right answer wins)_",
+    ...(hasRiddles() ? [`- 🧩 ${when("riddle")} Bible Riddle: *${RIDDLE_POINTS} pts*`] : []),
+    `- 🔁 ${when("review")} Midday Review: *${REVIEW_POINTS.both} / ${REVIEW_POINTS.reference} / ${REVIEW_POINTS.decoded} pts*${reviewNote}`,
+    ...(hasEmojiBible() ? [`- 😀 ${when("emoji")} Emoji Bible: *${EMOJI_POINTS} pts*`] : []),
     "",
     "🔥 Solve days in a row to build a streak and earn badges.",
     "",

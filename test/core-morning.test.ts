@@ -40,7 +40,7 @@ describe("newPuzzle", () => {
 
   it("includes the sheet's hint when there is one", async () => {
     fakes.verses = [fakes.psalm];
-    expect(await core.newPuzzle()).toContain("💡 Hint: herder");
+    expect(await core.newPuzzle()).toContain("💡 *Hint:* herder");
   });
 
   it("doesn't repeat a verse until all have been used", async () => {
@@ -104,7 +104,7 @@ describe("handleMessage", () => {
     const reply = await core.handleMessage(AMA, "Ama", "jn 3 16", postedAt + 90_000);
     expect(reply && "mentions" in reply ? reply.mentions : []).toEqual([AMA]);
     expect(textOf(reply)).toContain("Haaaa! Ama is sozzled!");
-    expect(textOf(reply)).toContain("@111 got it first in ⏱️ 2 min");
+    expect(textOf(reply)).toContain("@111 *got it first* in ⏱️ 2 min");
     expect(textOf(reply)).toContain("John 3:16 (KJV)");
     expect(textOf(reply)).toContain("#1 on the leaderboard");
   });
@@ -130,7 +130,7 @@ describe("handleMessage", () => {
     const late = await core.handleMessage(KOFI, "Kofi", "John 3:16", postedAt + 2 * MIN);
     expect(late).toEqual({
       kind: "late",
-      text: expect.stringMatching(/Correct, @222! \+1 point.*@111 got it first/),
+      text: expect.stringMatching(/Correct, @222! \*\+1 point\*[\s\S]*@111 got it first/),
       mentions: [KOFI, AMA],
     });
     expect(state.load().scores[KOFI]).toMatchObject({ points: 1, weekPoints: 1, wins: 0 });
@@ -206,7 +206,7 @@ describe("on the right track", () => {
     const reply = await core.handleMessage(AMA, "Ama", "For God so loved the world that", postedAt + MIN);
     expect(reply).toEqual({
       kind: "onTrack",
-      text: expect.stringContaining("👍 @111, you're on the right track! +1 point"),
+      text: expect.stringContaining("👍 @111, you're on the right track! *+1 point*"),
       mentions: [AMA],
     });
     expect(state.load()).toMatchObject({ winner: null, onTrack: [AMA] });
@@ -247,7 +247,7 @@ describe("bonus spots after the winner", () => {
 
   it("gives +1 to the next 3 correct answers only", async () => {
     await answer(AMA, "Ama");
-    expect(textOf(await answer(KOFI, "Kofi"))).toContain("+1 point (bonus spot 1 of 3)");
+    expect(textOf(await answer(KOFI, "Kofi"))).toContain("*+1 point* (bonus spot 1 of 3)");
     await answer(ESI, "Esi");
     expect(textOf(await answer(YAW, "Yaw"))).toContain("bonus spot 3 of 3");
 
@@ -286,7 +286,7 @@ describe("!today", () => {
     await core.hint();
     expect(core.todayPuzzle()).toEqual({
       text:
-        "📜 Today's scripture: *TLIMS; ISNW*\n💡 Hint: herder\n💡 Extra hint: behest; lifelong\n\n" +
+        "📜 Today's scripture: *TLIMS; ISNW*\n💡 *Hint:* herder\n💡 *Extra hint:* behest; lifelong\n\n" +
         "⏳ Nobody has got it yet. First correct answer wins! 🏆",
       mentions: [],
     });
@@ -310,22 +310,22 @@ describe("!today", () => {
 
   it("shows the answer once it has been revealed", async () => {
     await core.reveal();
-    expect(core.todayPuzzle().text).toContain("Nobody got it. It was 📖 John 3:16 (KJV)");
+    expect(core.todayPuzzle().text).toContain("Nobody got it. It was 📖 *John 3:16 (KJV)*");
   });
 });
 
 describe("hint and reveal", () => {
   it("gives an AI hint first, then the book", async () => {
-    expect(await core.hint()).toBe("💡 Extra hint (no more ⚡ speed bonus today): behest; lifelong");
-    expect(await core.hint()).toContain("book of 📘 John");
+    expect(await core.hint()).toBe("💡 *Extra hint* _(no more ⚡ speed bonus today)_: behest; lifelong");
+    expect(await core.hint()).toContain("book of 📘 *John*");
   });
 
   it("remembers each hint for !today", async () => {
     await core.hint();
     await core.hint();
     expect(state.load().hints).toEqual([
-      "💡 Extra hint: behest; lifelong",
-      "🔦 Last hint: it's in the book of 📘 John!",
+      "💡 *Extra hint:* behest; lifelong",
+      "🔦 *Last hint:* it's in the book of 📘 *John*!",
     ]);
   });
 
@@ -343,10 +343,10 @@ describe("hint and reveal", () => {
   it("still gives a hint after someone has won when the admin asks for one", async () => {
     await core.handleMessage(AMA, "Ama", "John 3:16", postedAt + MIN);
     expect(await core.hint({ evenIfSolved: true })).toContain("behest; lifelong");
-    expect(await core.hint({ evenIfSolved: true })).toContain("book of 📘 John");
+    expect(await core.hint({ evenIfSolved: true })).toContain("book of 📘 *John*");
   });
 
   it("reveals the answer when nobody got it", async () => {
-    expect(await core.reveal()).toContain("It was 📖 John 3:16 (KJV)");
+    expect(await core.reveal()).toContain("It was:\n\n📖 *John 3:16 (KJV)*");
   });
 });

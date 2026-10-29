@@ -1,18 +1,18 @@
 === 06:50 reminder: puzzle
-⏰ Today's scripture drops at 7 AM, in 10 minutes! Get ready 📖🔥
+⏰ *Today's scripture* drops at 7 AM, in 10 minutes! Get ready 📖🔥
 
 === 06:55 backup
 (nothing)
 
 === 07:00 newPuzzle
-☀️ Good morning! Today's scripture:
+☀️ *Good morning! Today's scripture*
 
 📜 *TLIMS; ISNW*
 
-💡 Hint: herder
+💡 *Hint:* herder
 
-💬 Reply with the reference, the decoded words, or both for the most points! 🎯
-🏆 First correct answer wins! ⏱️ Go go go! 🚀
+💬 Reply with the reference, the decoded words, or both for the most points 🎯
+🏆 First correct answer wins! ⏱️ Go go go!
 
 === 08:00 Kofi (222@c.us): "John 3:17"
 [react 🤔]
@@ -24,86 +24,100 @@
 ⏰ *Bible Riddle* at 10 AM, in 10 minutes! 🧩🤔
 
 === 10:00 newRiddle
-🧩 *Bible Riddle* 🤔
+🧩 *Bible Riddle*
 
-My strength was in my hair. Who am I?
+My strength was in my hair. Who am I? 🤔
 
-🎯 First right answer wins 3 points! Closes at 12 PM ⏳
+🎯 First right answer wins *3 points*!
+⏳ Closes at 12 PM
 
 === 12:00 closeRiddle
-🧩 Bible Riddle closed! Nobody got it 😮
-The answer was *Samson* (📖 Judges 16). New riddle tomorrow at 10 AM! 🙌
+🧩 *Bible Riddle closed!* Nobody got it 😮
+The answer was *Samson* (📖 Judges 16)
+
+_New riddle tomorrow at 10 AM!_ 🙌
 
 === 12:00 hint (12 PM)
-💡 Extra hint (no more ⚡ speed bonus today): behest; lifelong
+💡 *Extra hint* _(no more ⚡ speed bonus today)_: behest; lifelong
 
 === 13:50 reminder: review
 ⏰ *Midday Review* starts at 2 PM, in 10 minutes! 🔁🧠
 
 === 14:00 newReview
-🔁 *Midday Review* 🧠
-A verse we've had before. Do you remember it?
+🔁 *Midday Review*
+A verse we've had before. Do you remember it? 🧠
 
 📜 *OVN...*
 
-🎯 First correct answer wins 5 points! Closes at 5 PM ⏳
-☀️ This morning's puzzle is still open too. Send !today to see it
+🎯 First correct answer wins *5 points*!
+⏳ Closes at 5 PM
+
+☀️ This morning's puzzle is still open too.
+_Send !today to see it_
 
 === 17:00 closeReview
-🔁 Midday Review closed! Nobody got it 😮 It was 📖 Psalms 102:1:
+🔁 *Midday Review closed!* Nobody got it 😮 It was:
 
-"Old verse number 102."
+📖 *Psalms 102:1*
+> Old verse number 102.
 
-☀️ This morning's puzzle is still open until 9 PM. Send !today to see it 💪
+☀️ This morning's puzzle is still open until 9 PM.
+_Send !today to see it_ 💪
 
 === 18:00 hint (6 PM, the book)
-🔦 Last hint: it's in the book of 📘 Psalms!
+🔦 *Last hint:* it's in the book of 📘 *Psalms*!
 
 === 18:50 reminder: emoji
 ⏰ *Emoji Bible* starts at 7 PM, in 10 minutes! 😀🎬
 
 === 19:00 newEmojiGame
-😀 *Emoji Bible* 🎬
-Which Bible story is this?
+😀 *Emoji Bible*
+Which Bible story is this? 🎬
 
 🧒🪨🗡️🗿
 
-🎯 Name the story (who or where, not what the emoji show)! First right answer wins 2 points. Closes at 8 PM ⏳
+🎯 Name the story _(who or where, not what the emoji show)_!
+First right answer wins *2 points*.
+⏳ Closes at 8 PM
 
 === 20:00 closeEmojiGame
-😀 Emoji Bible closed! Nobody got it 😮
-🧒🪨🗡️🗿 was *David and Goliath*. See you tomorrow at 7 PM! 🙌
+😀 *Emoji Bible closed!* Nobody got it 😮
+🧒🪨🗡️🗿 was *David and Goliath*
+
+_See you tomorrow at 7 PM!_ 🙌
 
 === 20:05 weekly wrap (leaderboard: week)
-📅 This week's leaderboard 🔥
+📅 *This week's leaderboard*
 
-🥇 @111: 15 pts
-🥈 @444: 6 pts
-🥉 @333: 4 pts
-4. @222: 2 pts
-5. @555: 2 pts
+🥇 @111  *15 pts*
+🥈 @444  *6 pts*
+🥉 @333  *4 pts*
+4. @222  *2 pts*
+5. @555  *2 pts*
 (mentions: 111@c.us, 444@c.us, 333@c.us, 222@c.us, 555@c.us)
 
 === 21:00 reveal
-😮 Nobody got it today! It was 📖 Psalms 23:1:
+😮 *Nobody got it today!* It was:
 
-"The LORD is my shepherd; I shall not want."
+📖 *Psalms 23:1*
+> The LORD is my shepherd; I shall not want.
 
-🙏 Meditate on it and come back tomorrow! 💪
+🙏 _Meditate on it and come back tomorrow!_ 💪
 
 === 21:30 !today
 📜 Today's scripture: *TLIMS; ISNW*
-💡 Hint: herder
-💡 Extra hint: behest; lifelong
-🔦 Last hint: it's in the book of 📘 Psalms!
+💡 *Hint:* herder
+💡 *Extra hint:* behest; lifelong
+🔦 *Last hint:* it's in the book of 📘 *Psalms*!
 
-🌙 Nobody got it. It was 📖 Psalms 23:1. A new one comes at 7 AM ☀️
+🌙 Nobody got it. It was 📖 *Psalms 23:1*.
+_A new one comes at 7 AM_ ☀️
 
 🧩 *Bible Riddle*: My strength was in my hair. Who am I?
 🌙 Nobody got it. It was *Samson*
 
 🔁 *Midday Review*: *OVN...*
-🌙 Nobody got it. It was 📖 Psalms 102:1
+🌙 Nobody got it. It was 📖 *Psalms 102:1*
 
 😀 *Emoji Bible*: 🧒🪨🗡️🗿
 🌙 Nobody got it. It was *David and Goliath*
@@ -111,75 +125,81 @@ Which Bible story is this?
 === 21:30 !schedule
 🗓️ *Daily schedule* (EDT)
 
-☀️ 7 AM: Morning puzzle
-🧩 10 AM: Bible Riddle, until 12 PM
-💡 12 PM: Extra hint (the speed bonus ends)
-🔁 2 PM: Midday Review, until 5 PM
-🔦 6 PM: Last hint: the book
-😀 7 PM: Emoji Bible, until 8 PM
-🌙 9 PM: The answer, if nobody got it
+☀️ *7 AM*: Morning puzzle
+🧩 *10 AM*: Bible Riddle, until 12 PM
+💡 *12 PM*: Extra hint (the speed bonus ends)
+🔁 *2 PM*: Midday Review, until 5 PM
+🔦 *6 PM*: Last hint: the book
+😀 *7 PM*: Emoji Bible, until 8 PM
+🌙 *9 PM*: The answer, if nobody got it
 
-📅 Sundays 8:05 PM: Weekly standings
-🏆 Dec 31, 8 PM: Season finale
+📅 *Sundays 8:05 PM*: Weekly standings
+🏆 *Dec 31, 8 PM*: Season finale
 
 === 21:30 !leaderboard (asked by Kofi)
-🏆 2026 season leaderboard 🏆
+🏆 *2026 season leaderboard*
 
-🥇 @111: 15 pts (🏅 1 wins)
-🥈 @444: 6 pts (🏅 0 wins)
-🥉 @333: 4 pts (🏅 0 wins)
-4. @222: 2 pts (🏅 0 wins)
-5. @555: 2 pts (🏅 0 wins)
+🥇 @111  *15 pts* · 1 win
+🥈 @444  *6 pts* · 0 wins
+🥉 @333  *4 pts* · 0 wins
+4. @222  *2 pts* · 0 wins
+5. @555  *2 pts* · 0 wins
 (mentions: 111@c.us, 444@c.us, 333@c.us, 222@c.us, 555@c.us)
 
 === 21:30 !week (asked by Kofi)
-📅 This week's leaderboard 🔥
+📅 *This week's leaderboard*
 
-🥇 @111: 15 pts
-🥈 @444: 6 pts
-🥉 @333: 4 pts
-4. @222: 2 pts
-5. @555: 2 pts
+🥇 @111  *15 pts*
+🥈 @444  *6 pts*
+🥉 @333  *4 pts*
+4. @222  *2 pts*
+5. @555  *2 pts*
 (mentions: 111@c.us, 444@c.us, 333@c.us, 222@c.us, 555@c.us)
 
 === 21:30 !me (Kofi)
-📊 @222: ⭐ 2 pts, 🏅 0 wins, 🏆 #4 this season.
+📊 @222 · *#4 this season*
+⭐ *2 points* · 🏅 0 wins
 ⚡ Fastest solve: none yet
-🔥 Streak: 0 days (best 1)
-⏳ Your 1-day streak is on the line. Solve today's puzzle to keep it!
+🔥 Streak: *0 days* (best 1)
+⏳ Your 1-day streak is on the line.
+_Solve today's puzzle to keep it!_
 (mentions: 222@c.us)
 
 === 21:30 !streak (Kofi)
-⏳ @222, your 1-day streak is on the line! (best: 1) Solve today's puzzle to keep it going 🔥
+⏳ @222, your 1-day streak is on the line! (best: 1)
+_Solve today's puzzle to keep it going_ 🔥
 (mentions: 222@c.us)
 
 === 21:30 !commands
 📋 *Commands*
-• !today: today's puzzles, hints, and who solved them 📜
-• !schedule: what happens at what time 🗓️
-• !leaderboard: season standings 🏆
-• !week: this week's standings 📅
-• !me: your points, streak and badges 📊
-• !streak: your current streak 🔥
-• !commands: just this list 📋
-• !help: rules, points and commands 📖
+- *!today*: today's puzzles, hints, and who solved them
+- *!schedule*: what happens at what time
+- *!leaderboard*: season standings
+- *!week*: this week's standings
+- *!me*: your points, streak and badges
+- *!streak*: your current streak
+- *!commands*: just this list
+- *!help*: rules, points and commands
 
 === 21:30 !help
-📖 *Scripture Challenge* 🙌
+📖 *Scripture Challenge*
 
 ☀️ Every day at 7 AM I post a verse as an acronym, like *TLIMS; ISNW*.
 💬 Reply with the reference, the decoded words, or both. First right answer wins!
 💡 Hints at 12 PM and 6 PM · answer at 9 PM
 
 🎯 *Points*
-• Reference + words: 10  ·  Reference: 6  ·  Words: 3
-• ⚡ Up to +5 for speed, before the first hint
-• 👍 +1 for the start of the verse  ·  ✅ +1 for the next 3 after the winner
+- Reference + words: *10*
+- Reference only: *6*
+- Words only: *3*
+- ⚡ Up to *+5* for speed, before the first hint
+- 👍 *+1* for the start of the verse
+- ✅ *+1* for the next 3 after the winner
 
-🎮 *More games* (first right answer wins)
-• 🧩 10 AM Bible Riddle: 3 pts
-• 🔁 2 PM Midday Review: 5 / 3 / 2 pts
-• 😀 7 PM Emoji Bible: 2 pts
+🎮 *More games* _(first right answer wins)_
+- 🧩 10 AM Bible Riddle: *3 pts*
+- 🔁 2 PM Midday Review: *5 / 3 / 2 pts*
+- 😀 7 PM Emoji Bible: *2 pts*
 
 🔥 Solve days in a row to build a streak and earn badges.
 

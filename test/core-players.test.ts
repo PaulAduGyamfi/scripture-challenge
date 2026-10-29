@@ -32,7 +32,7 @@ describe("streaks and badges", () => {
 
   it("counts days in a row, from wins and late answers alike", async () => {
     await solveOnDay(0);
-    expect(textOf(await solveOnDay(1, AMA, "Ama", true))).toContain("🔥 2-day streak!");
+    expect(textOf(await solveOnDay(1, AMA, "Ama", true))).toContain("🔥 *2-day streak!*");
     expect(state.load().scores[AMA]).toMatchObject({ streak: 2, bestStreak: 2 });
   });
 
@@ -45,10 +45,10 @@ describe("streaks and badges", () => {
   });
 
   it("announces new badges once", async () => {
-    expect(textOf(await solveOnDay(0))).toContain("🎖️ New badge: 🌱 First Fruits!");
+    expect(textOf(await solveOnDay(0))).toContain("🎖️ New badge: *🌱 First Fruits*");
     await solveOnDay(1);
     const third = textOf(await solveOnDay(2));
-    expect(third).toContain("🎖️ New badge: 🔥 On Fire!");
+    expect(third).toContain("🎖️ New badge: *🔥 On Fire*");
     expect(third).not.toContain("First Fruits");
   });
 
@@ -71,7 +71,7 @@ describe("streaks and badges", () => {
     }
     const reply = await core.handleMessage(AMA, "Ama", "John 3:16", Date.now() + 2 * MIN);
     expect(textOf(reply)).toContain("All 3 bonus spots are taken today");
-    expect(textOf(reply)).toContain("🔥 2-day streak!");
+    expect(textOf(reply)).toContain("🔥 *2-day streak!*");
     expect(state.load().scores[AMA]).toMatchObject({ streak: 2, bestStreak: 2 });
   });
 
@@ -95,7 +95,7 @@ describe("streaks and badges", () => {
     await core.newPuzzle(); // day 3's puzzle, not answered yet
     expect(core.streak(AMA).text).toContain("@111, your 2-day streak is on the line!");
     expect(core.streak(AMA).text).not.toContain("is on a");
-    expect(core.myStats(AMA).text).toContain("Streak: 0 days (best 2)");
+    expect(core.myStats(AMA).text).toContain("Streak: *0 days* (best 2)");
     expect(core.myStats(AMA).text).toContain("Your 2-day streak is on the line");
     await core.handleMessage(AMA, "Ama", "John 3:16", Date.now() + MIN);
     expect(core.streak(AMA).text).toContain("is on a 3-day streak!");
@@ -134,7 +134,7 @@ describe("help and commands", () => {
 
   it("!help lists the points and every other command", () => {
     const text = core.help();
-    expect(text).toContain("Up to +5 for speed");
+    expect(text).toContain("Up to *+5* for speed");
     for (const cmd of PLAYER_COMMANDS.filter(c => c !== "!help")) expect(text).toContain(cmd);
     expect(text).not.toContain("!new");
   });
@@ -145,8 +145,8 @@ describe("help and commands", () => {
     expect(core.help()).not.toMatch(/Bible Riddle|Emoji Bible/);
     vi.stubEnv("RIDDLES_CSV_URL", "https://example.test/riddles.csv");
     vi.stubEnv("STORIES_CSV_URL", "https://example.test/stories.csv");
-    expect(core.help()).toContain("• 🧩 10 AM Bible Riddle: 3 pts");
-    expect(core.help()).toContain("• 😀 7 PM Emoji Bible: 2 pts");
+    expect(core.help()).toContain("- 🧩 10 AM Bible Riddle: *3 pts*");
+    expect(core.help()).toContain("- 😀 7 PM Emoji Bible: *2 pts*");
     vi.unstubAllEnvs();
   });
 
@@ -188,17 +188,17 @@ describe("big leaderboards", () => {
   it("shows the top 10, then 5 honourable mentions, and no more", async () => {
     await crowd();
     const board = core.leaderboard("season");
-    expect(board.text).toContain("🥇 @1: 200 pts");
-    expect(board.text).toContain("10. @10: 110 pts");
-    expect(board.text).toContain("🎖️ *Honourable mentions*\n11. @11: 100 pts");
-    expect(board.text).toContain("15. @15: 60 pts");
+    expect(board.text).toContain("🥇 @1  *200 pts*");
+    expect(board.text).toContain("10. @10  *110 pts*");
+    expect(board.text).toContain("🎖️ *Honourable mentions*\n11. @11  *100 pts*");
+    expect(board.text).toContain("15. @15  *60 pts*");
     expect(board.text).not.toContain("@16");
     expect(board.mentions).toHaveLength(15);
   });
 
   it("tells someone further down where they stand", async () => {
     await crowd();
-    expect(core.leaderboard("week", "18@c.us").text).toContain("📍 You're #18 with 30 pts");
+    expect(core.leaderboard("week", "18@c.us").text).toContain("📍 You're #18 with *30 pts*");
     expect(core.leaderboard("week", "3@c.us").text).not.toContain("📍"); // already on the board
   });
 
@@ -224,8 +224,8 @@ describe("leaderboards and stats", () => {
     await win(KOFI, "Kofi");
     const board = core.leaderboard("season");
     expect(board.mentions).toEqual([AMA, KOFI]);
-    expect(board.text).toContain("🥇 @111: 22 pts (🏅 2 wins)");
-    expect(board.text).toContain("🥈 @222: 11 pts (🏅 1 wins)");
+    expect(board.text).toContain("🥇 @111  *22 pts* · 2 wins");
+    expect(board.text).toContain("🥈 @222  *11 pts* · 1 win");
   });
 
   it("starts a fresh weekly board on Monday but keeps the season", async () => {
@@ -247,7 +247,7 @@ describe("leaderboards and stats", () => {
     await win(AMA, "Ama", 3);
     expect(core.myStats(AMA)).toEqual({
       text: expect.stringMatching(
-        /@111: ⭐ 11 pts, 🏅 1 wins, 🏆 #1 this season[\s\S]*Fastest solve: 3 min[\s\S]*Streak: 1 days \(best 1\)[\s\S]*Badges: 🌱 First Fruits/
+        /@111 · \*#1 this season\*\n⭐ \*11 points\* · 🏅 1 win[\s\S]*Fastest solve: 3 min[\s\S]*Streak: \*1 day\* \(best 1\)[\s\S]*Badges:\* 🌱 First Fruits/
       ),
       mentions: [AMA],
     });
@@ -281,8 +281,8 @@ describe("!schedule", () => {
     const positions = order.map(o => text.indexOf(o));
     expect(positions.every(p => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    expect(text).toContain("☀️ 7 AM: Morning puzzle");
-    expect(text).toContain("📅 Sundays 8:05 PM");
+    expect(text).toContain("☀️ *7 AM*: Morning puzzle");
+    expect(text).toContain("📅 *Sundays 8:05 PM*");
   });
 
   it("marks the Midday Review as coming soon until there are enough old verses", () => {
@@ -297,7 +297,7 @@ describe("!schedule", () => {
     vi.stubEnv("STORIES_CSV_URL", "");
     expect(core.schedule()).not.toContain("Emoji Bible");
     vi.stubEnv("STORIES_CSV_URL", "https://example.test/stories.csv");
-    expect(core.schedule()).toContain("😀 7 PM: Emoji Bible, until 8 PM");
+    expect(core.schedule()).toContain("😀 *7 PM*: Emoji Bible, until 8 PM");
     vi.unstubAllEnvs();
   });
 

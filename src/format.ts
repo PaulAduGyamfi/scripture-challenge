@@ -36,6 +36,20 @@ export function fullRef(v: Scripture): string {
   return formatRef(v) + (v.translation ? ` (${v.translation})` : "");
 }
 
+// The verse as it appears in every message: the reference in bold, then the text as a quote
+//   📖 *John 3:16 (KJV)*
+//   > For God so loved the world...
+export function verseBlock(v: Scripture): string {
+  const quote = v.text
+    .split("\n")
+    .map(line => `> ${line}`)
+    .join("\n");
+  return `📖 *${fullRef(v)}*\n${quote}`;
+}
+
+// "1 point", "2 points"
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 export const puzzleOf = (v: Scripture) => v.acronym || makeAcronym(v.clue);
 
 // The first listed answer, capitalised: "noah" -> "Noah"

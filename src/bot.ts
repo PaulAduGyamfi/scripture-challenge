@@ -270,12 +270,12 @@ at(S.closeEmoji, async () => post(await core.closeEmojiGame()));
 at(S.reveal, async () => post(await core.reveal()));
 at(S.weeklyWrap, async () =>
   // after Emoji Bible closes
-  post(withIntro("That's a wrap on the week! Final standings:\n\n", core.leaderboard("week")))
+  post(withIntro("*That's a wrap on the week!* Final standings:\n\n", core.leaderboard("week")))
 );
 at(S.seasonFinale, async () =>
   // Dec 31 season finale
   post(
-    withIntro("Season's over! Congratulations to this year's top solvers:\n\n", core.leaderboard("season"))
+    withIntro("*Season's over!* Congratulations to this year's top solvers:\n\n", core.leaderboard("season"))
   )
 );
 
