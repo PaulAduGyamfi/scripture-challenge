@@ -17,19 +17,25 @@ toward are in [architecture.md](architecture.md).
 
 - `src/domain/` holds the game rules: matching, points, streaks, badges, day and week keys. It does
   no I/O.
-- It may import from `../types` and from other `domain/` files only. Never from `ai`, `sheet`,
-  `state`, `config` or `bot`, and never a Node module (`node:fs`, `fs`, …).
-  `test/domain-boundaries.test.ts` checks this.
+- It may import from `../types` and from other `domain/` files only: no other `src/` file, npm
+  package or Node module (`node:fs`, `fs`, …). `test/domain-boundaries.test.ts` checks this.
 - It needs a player or the state? Declare the few fields it reads as a small interface, as
   `domain/streaks.ts` does, instead of importing `Player` or `State`.
 
 ## 3. Imports go one way
 
-```
-bot.ts, sim.ts  ->  core.ts  ->  answers.ts, replies.ts  ->  players.ts, format.ts, schedule.ts  ->  domain/
-```
+Each file imports only from the rows below it:
 
-No import cycles. Nothing imports `core.ts` except the entry points and the tests.
+| File | May import |
+|---|---|
+| `bot.ts`, `sim.ts` | `core.ts`, `config.ts` |
+| `core.ts` | `answers.ts`, `replies.ts`, the helpers, the outside world, `domain/` |
+| `answers.ts`, `replies.ts` | the helpers, the outside world, `domain/` |
+| helpers: `players.ts`, `format.ts`, `schedule.ts` | `state.ts` types, `domain/` |
+| outside world: `ai.ts`, `sheet.ts`, `state.ts`, `config.ts` | each other, `domain/` |
+| `domain/` | `domain/`, `types.ts` |
+
+`types.ts` can be imported by anything. No import cycles. Nothing imports `core.ts` except the entry points and the tests.
 Only `core.ts` runs the `inOrder` queue (I2). Functions elsewhere that save state, such as the
 handlers in `answers.ts`, are called only from inside it, and say so at the top of their file.
 
