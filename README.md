@@ -258,9 +258,9 @@ These backups live on the same server. For extra safety, copy the `backups/` fol
 
 | To change | Edit |
 |---|---|
-| Posting times | `SCHEDULE` near the top of `src/core.ts` (cron format: `minute hour * * *`). The timers, `!schedule`, `!help` and every message follow it. |
-| Points, speed bonus, badges | Top of `src/core.ts` |
-| Messages and emoji | `src/core.ts` |
+| Posting times | `SCHEDULE` in `src/schedule.ts` (cron format: `minute hour * * *`). The timers, `!schedule`, `!help` and every message follow it. |
+| Points, speed bonus, badges | `src/domain/scoring.ts` and `src/domain/streaks.ts` |
+| Messages and emoji | `src/core.ts`, `src/answers.ts` and `src/replies.ts` |
 | The winner's cheer | The `celebrate` prompt in `src/ai.ts`. Teach it your church's own sayings. |
 | Hint style | The `makeHint` prompt in `src/ai.ts` |
 
@@ -293,8 +293,10 @@ The tests fake the AI, the sheet and WhatsApp, so they run offline with no keys.
 | File | What's in it |
 |---|---|
 | `src/bot.ts` | WhatsApp connection, commands, schedule |
-| `src/core.ts` | The game: puzzles, scoring, streaks, leaderboards |
-| `src/game.ts` | Reading references, acronyms, checking decoded answers |
+| `src/core.ts` | The game: puzzles, answers, hints, the extra games |
+| `src/answers.ts` | Points and replies for correct answers |
+| `src/replies.ts` | `!today`, leaderboards, `!me`, `!schedule`, `!help` |
+| `src/domain/` | Pure rules: matching answers, points, streaks, badges, dates |
 | `src/ai.ts` | Claude calls: reading messy guesses, hints, cheers |
 | `src/sheet.ts` | Loading verses from the Google Sheet |
 | `src/state.ts` | Saving scores to `state.json`, backups |
